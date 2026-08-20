@@ -39,7 +39,12 @@ button.danger{background:#fff;color:var(--danger);border:1px solid #fecaca}
 .elapsed{font-size:27px;font-weight:900;margin:12px 0 4px}
 .elapsed span{font-size:13px;color:var(--muted);font-weight:600}
 .care{width:100%;background:var(--accent);font-size:17px;padding:14px;margin-top:10px}
-.water-fields[hidden]{display:none}
+.care-fields[hidden]{display:none}
+.check-row{display:flex;align-items:center;gap:8px;margin-top:10px;color:var(--text);font-size:14px}
+.check-row input{width:auto}
+.photo-preview{display:none;width:100%;max-height:240px;object-fit:contain;margin-top:10px;border-radius:12px;background:#f9fafb}
+.history-photo{display:block;width:100%;max-height:320px;object-fit:contain;margin-top:9px;border-radius:12px;background:#f9fafb}
+.hint{font-size:12px;color:var(--muted);margin-top:5px}
 .mini{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}
 .mini button{flex:1;min-width:110px;padding:10px;font-size:13px}
 .empty{text-align:center;color:var(--muted);padding:24px 10px}
@@ -113,14 +118,12 @@ textarea{min-height:76px;resize:vertical}
     <label>ケアの種類</label>
     <select id="careType">
       <option>水やり</option>
+      <option>薬剤散布</option>
       <option>植え替え</option>
       <option>施肥</option>
-      <option>剪定</option>
-      <option>薬剤散布</option>
-      <option>成長記録</option>
-      <option>その他</option>
+      <option>状態・写真記録</option>
     </select>
-    <div id="waterFields" class="water-fields">
+    <div id="waterFields" class="care-fields">
       <label>水やり方法</label>
       <select id="waterType">
         <option>たっぷり灌水</option>
@@ -133,6 +136,61 @@ textarea{min-height:76px;resize:vertical}
         <option>なし</option>
         <option>あり</option>
       </select>
+      <label>水の量（任意）</label>
+      <input id="waterAmount" placeholder="例：鉢底から流れるまで、200ml">
+    </div>
+    <div id="pesticideFields" class="care-fields" hidden>
+      <label>薬剤名</label>
+      <input id="pesticideName" placeholder="例：ベニカXファインスプレー">
+      <label>対象</label>
+      <input id="pesticideTarget" placeholder="例：ハダニ、カイガラムシ、殺菌">
+      <label>希釈倍率（任意）</label>
+      <input id="pesticideDilution" placeholder="例：1000倍、原液">
+      <label>使用方法</label>
+      <select id="pesticideMethod">
+        <option>散布</option>
+        <option>灌注</option>
+        <option>塗布</option>
+        <option>その他</option>
+      </select>
+      <label>次回予定日（任意）</label>
+      <input id="pesticideNextDate" type="date">
+    </div>
+    <div id="repotFields" class="care-fields" hidden>
+      <label>鉢の種類（任意）</label>
+      <input id="potType" placeholder="例：プレステラ、スリット鉢">
+      <label>鉢サイズ（任意）</label>
+      <input id="potSize" placeholder="例：90、3号">
+      <label>用土の配合（任意）</label>
+      <textarea id="soilMix" placeholder="例：赤玉4、軽石4、鹿沼2"></textarea>
+      <label class="check-row"><input id="rootPruned" type="checkbox">根切り・根整理をした</label>
+      <label>植え替え理由（任意）</label>
+      <input id="repotReason" placeholder="例：鉢増し、根詰まり、用土交換">
+    </div>
+    <div id="fertilizeFields" class="care-fields" hidden>
+      <label>肥料名</label>
+      <input id="fertilizerName" placeholder="例：ハイポネックス、マグァンプK">
+      <label>種類</label>
+      <select id="fertilizerForm">
+        <option>液肥</option>
+        <option>置き肥</option>
+        <option>元肥</option>
+        <option>その他</option>
+      </select>
+      <label>希釈倍率・使用量（任意）</label>
+      <input id="fertilizerAmount" placeholder="例：2000倍、3粒">
+    </div>
+    <div id="growthFields" class="care-fields" hidden>
+      <label>高さ（任意）</label>
+      <input id="plantHeight" inputmode="decimal" placeholder="例：12cm">
+      <label>幹・茎の太さ（任意）</label>
+      <input id="trunkWidth" inputmode="decimal" placeholder="例：4.5cm">
+      <label>葉数（任意）</label>
+      <input id="leafCount" inputmode="numeric" placeholder="例：18枚">
+      <label>写真（任意）</label>
+      <input id="carePhoto" type="file" accept="image/*">
+      <div class="hint">写真は保存容量を抑えるため自動で縮小・圧縮します。</div>
+      <img id="photoPreview" class="photo-preview" alt="選択した写真のプレビュー">
     </div>
     <label>メモ（任意）</label>
     <textarea id="waterNote" placeholder="例：朝に灌水、植え替え後の状態良好"></textarea>
@@ -187,8 +245,14 @@ let currentId=null;
 const $=id=>document.getElementById(id);
 
 function save(){
-  localStorage.setItem(KEY, JSON.stringify(data));
-  render();
+  try{
+    localStorage.setItem(KEY, JSON.stringify(data));
+    render();
+    return true;
+  }catch(e){
+    alert('保存容量がいっぱいです。不要な写真や記録を削除してから、もう一度お試しください。');
+    return false;
+  }
 }
 function toast(msg){
   const t=$('toast');
@@ -268,8 +332,57 @@ $('savePlant').onclick=()=>{
   save();
 };
 
-function toggleWaterFields(){
-  $('waterFields').hidden=$('careType').value!=='水やり';
+const CARE_FIELD_IDS={
+  '水やり':'waterFields',
+  '薬剤散布':'pesticideFields',
+  '植え替え':'repotFields',
+  '施肥':'fertilizeFields',
+  '状態・写真記録':'growthFields'
+};
+
+function toggleCareFields(){
+  Object.values(CARE_FIELD_IDS).forEach(id=>$(id).hidden=true);
+  const selected=CARE_FIELD_IDS[$('careType').value];
+  if(selected) $(selected).hidden=false;
+}
+
+function resetCareForm(){
+  ['waterAmount','pesticideName','pesticideTarget','pesticideDilution','pesticideNextDate',
+   'potType','potSize','soilMix','repotReason','fertilizerName','fertilizerAmount',
+   'plantHeight','trunkWidth','leafCount','waterNote'].forEach(id=>$(id).value='');
+  $('waterType').value='たっぷり灌水';
+  $('fertilizer').value='なし';
+  $('pesticideMethod').value='散布';
+  $('fertilizerForm').value='液肥';
+  $('rootPruned').checked=false;
+  $('carePhoto').value='';
+  $('photoPreview').src='';
+  $('photoPreview').style.display='none';
+}
+
+function compressImage(file){
+  return new Promise((resolve,reject)=>{
+    const reader=new FileReader();
+    reader.onerror=()=>reject(new Error('写真を読み込めませんでした'));
+    reader.onload=()=>{
+      const img=new Image();
+      img.onerror=()=>reject(new Error('この写真形式は読み込めませんでした'));
+      img.onload=()=>{
+        const maxSide=900;
+        const scale=Math.min(1,maxSide/Math.max(img.width,img.height));
+        const canvas=document.createElement('canvas');
+        canvas.width=Math.max(1,Math.round(img.width*scale));
+        canvas.height=Math.max(1,Math.round(img.height*scale));
+        const ctx=canvas.getContext('2d');
+        ctx.fillStyle='#fff';
+        ctx.fillRect(0,0,canvas.width,canvas.height);
+        ctx.drawImage(img,0,0,canvas.width,canvas.height);
+        resolve(canvas.toDataURL('image/jpeg',0.72));
+      };
+      img.src=reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
 }
 
 window.openCare=id=>{
@@ -277,35 +390,126 @@ window.openCare=id=>{
   const p=data.plants.find(x=>x.id===id);
   $('careTitle').textContent=`${p.name} のケア記録`;
   $('careType').value='水やり';
-  $('waterType').value='たっぷり灌水';
-  $('fertilizer').value='なし';
-  $('waterNote').value='';
-  toggleWaterFields();
+  resetCareForm();
+  toggleCareFields();
   $('careDialog').showModal();
 };
-$('careType').onchange=toggleWaterFields;
+$('careType').onchange=toggleCareFields;
+$('carePhoto').onchange=()=>{
+  const file=$('carePhoto').files[0];
+  if(!file){
+    $('photoPreview').style.display='none';
+    return;
+  }
+  const url=URL.createObjectURL(file);
+  $('photoPreview').src=url;
+  $('photoPreview').style.display='block';
+  $('photoPreview').onload=()=>URL.revokeObjectURL(url);
+};
 $('cancelCare').onclick=()=> $('careDialog').close();
-$('saveCare').onclick=()=>{
+$('saveCare').onclick=async()=>{
   const p=data.plants.find(x=>x.id===currentId);
   const care=$('careType').value;
-  p.logs.unshift({
+  if(care==='薬剤散布' && !$('pesticideName').value.trim()) return alert('薬剤名を入力してください');
+  if(care==='施肥' && !$('fertilizerName').value.trim()) return alert('肥料名を入力してください');
+
+  const details={};
+  if(care==='水やり') Object.assign(details,{waterAmount:$('waterAmount').value.trim()});
+  if(care==='薬剤散布') Object.assign(details,{
+    name:$('pesticideName').value.trim(),target:$('pesticideTarget').value.trim(),
+    dilution:$('pesticideDilution').value.trim(),method:$('pesticideMethod').value,
+    nextDate:$('pesticideNextDate').value
+  });
+  if(care==='植え替え') Object.assign(details,{
+    potType:$('potType').value.trim(),potSize:$('potSize').value.trim(),
+    soilMix:$('soilMix').value.trim(),rootPruned:$('rootPruned').checked,
+    reason:$('repotReason').value.trim()
+  });
+  if(care==='施肥') Object.assign(details,{
+    name:$('fertilizerName').value.trim(),form:$('fertilizerForm').value,
+    amount:$('fertilizerAmount').value.trim()
+  });
+  if(care==='状態・写真記録') Object.assign(details,{
+    height:$('plantHeight').value.trim(),trunkWidth:$('trunkWidth').value.trim(),
+    leafCount:$('leafCount').value.trim()
+  });
+
+  let photo='';
+  const photoFile=$('carePhoto').files[0];
+  if(care==='状態・写真記録' && photoFile){
+    $('saveCare').disabled=true;
+    $('saveCare').textContent='写真を処理中…';
+    try{ photo=await compressImage(photoFile); }
+    catch(e){ alert(e.message); return; }
+    finally{
+      $('saveCare').disabled=false;
+      $('saveCare').textContent='記録する';
+    }
+  }
+
+  const log={
     time:Date.now(),
     care,
     type:care==='水やり' ? $('waterType').value : care,
     fertilizer:care==='水やり' ? $('fertilizer').value : 'なし',
-    note:$('waterNote').value.trim()
-  });
-  $('careDialog').close();
-  save();
+    details,
+    note:$('waterNote').value.trim(),
+    photo
+  };
+  p.logs.unshift(log);
+  if(save()) $('careDialog').close();
+  else p.logs.shift();
 };
+
+function careDetailHtml(l){
+  const care=l.care || '水やり';
+  const d=l.details || {};
+  const parts=[];
+  if(care==='水やり'){
+    parts.push(`方法：${esc(l.type || '通常')}`);
+    parts.push(`液肥：${esc(l.fertilizer || 'なし')}`);
+    if(d.waterAmount) parts.push(`量：${esc(d.waterAmount)}`);
+  }
+  if(care==='薬剤散布'){
+    if(d.name) parts.push(`薬剤：${esc(d.name)}`);
+    if(d.target) parts.push(`対象：${esc(d.target)}`);
+    if(d.dilution) parts.push(`希釈：${esc(d.dilution)}`);
+    if(d.method) parts.push(`方法：${esc(d.method)}`);
+    if(d.nextDate) parts.push(`次回：${esc(d.nextDate)}`);
+  }
+  if(care==='植え替え'){
+    if(d.potType || d.potSize) parts.push(`鉢：${esc([d.potType,d.potSize].filter(Boolean).join(' '))}`);
+    if(d.soilMix) parts.push(`用土：${esc(d.soilMix)}`);
+    if(d.rootPruned) parts.push('根切り・根整理：あり');
+    if(d.reason) parts.push(`理由：${esc(d.reason)}`);
+  }
+  if(care==='施肥'){
+    if(d.name) parts.push(`肥料：${esc(d.name)}`);
+    if(d.form) parts.push(`種類：${esc(d.form)}`);
+    if(d.amount) parts.push(`希釈・量：${esc(d.amount)}`);
+  }
+  if(care==='状態・写真記録'){
+    if(d.height) parts.push(`高さ：${esc(d.height)}`);
+    if(d.trunkWidth) parts.push(`幹・茎：${esc(d.trunkWidth)}`);
+    if(d.leafCount) parts.push(`葉数：${esc(d.leafCount)}`);
+  }
+  if(l.note) parts.push(`メモ：${esc(l.note)}`);
+  return parts.join('<br>') || '詳細なし';
+}
+
+function photoHtml(photo){
+  if(!/^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(photo || '')) return '';
+  return `<img class="history-photo" src="${photo}" alt="成長記録の写真">`;
+}
 
 window.showHistory=id=>{
   const p=data.plants.find(x=>x.id===id);
   $('historyTitle').textContent=`${p.name} の履歴`;
   $('historyList').innerHTML=(p.logs?.length?p.logs.map((l,i)=>`
     <div class="history-item">
-      <div class="history-title">${fmtDate(l.time)} ・ ${esc(l.care || '水やり')}${l.care==='水やり'||!l.care?`（${esc(l.type)}）`:''}</div>
-      <div class="history-note">${l.care==='水やり'||!l.care?`液肥：${esc(l.fertilizer)}${l.note?' ／ ':''}`:''}${l.note?esc(l.note):''}</div>
+      <div class="history-title">${fmtDate(l.time)} ・ ${esc(l.care || '水やり')}</div>
+      <div class="history-note">${careDetailHtml(l)}</div>
+      ${photoHtml(l.photo)}
       <button class="danger" style="margin-top:7px;padding:7px 10px;font-size:12px"
         onclick="removeLog('${id}',${i})">この記録を削除</button>
     </div>`).join(''):'<div class="empty">履歴はまだありません。</div>');
