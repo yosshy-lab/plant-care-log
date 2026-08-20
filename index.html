@@ -64,6 +64,24 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .elapsed{font-size:27px;font-weight:900;margin:12px 0 4px}
 .elapsed span{font-size:13px;color:var(--muted);font-weight:600}
 .care{width:100%;background:var(--accent);font-size:17px;padding:14px;margin-top:10px}
+.list-layout-toolbar{display:flex;justify-content:flex-end;margin:-4px 0 10px}
+.list-layout-switch{display:grid;grid-template-columns:1fr 1fr;gap:3px;padding:3px;background:#e5e7eb;border-radius:12px}
+.list-layout-switch button{padding:7px 11px;background:transparent;color:var(--muted);font-size:13px;border-radius:9px}
+.list-layout-switch button.active{background:#fff;color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.plant-card{position:relative;cursor:pointer}
+.plant-card:focus-visible{outline:3px solid #93c5fd;outline-offset:2px}
+.plant-card-photo{display:none;width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:10px;background:#f3f4f6;margin-bottom:10px}
+#plants.grid-layout{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+#plants.grid-layout .card{min-width:0;margin-bottom:0;padding:12px}
+#plants.grid-layout .name{font-size:16px;line-height:1.3;overflow-wrap:anywhere}
+#plants.grid-layout .meta{font-size:11px;line-height:1.35}
+#plants.grid-layout .elapsed{font-size:22px;line-height:1.2;margin:11px 0 4px}
+#plants.grid-layout .elapsed span{display:block;font-size:10px;margin-top:2px}
+#plants.grid-layout .badge{font-size:10px;padding:4px 6px}
+#plants.grid-layout .plant-menu-button{min-width:32px;padding:5px 7px}
+#plants.grid-layout .care{font-size:13px;padding:10px 6px;margin-top:9px}
+#plants.grid-layout .menu-panel{width:190px}
+#plants.grid-layout .plant-card-photo{display:block}
 .care-fields[hidden]{display:none}
 .check-row{display:flex;align-items:center;gap:8px;margin-top:10px;color:var(--text);font-size:14px}
 .check-row input{width:auto}
@@ -150,6 +168,23 @@ textarea{min-height:76px;resize:vertical}
 .history-item:last-child{border-bottom:0}
 .history-title{font-weight:700}
 .history-note{font-size:13px;color:var(--muted);margin-top:3px}
+.detail-hero{display:flex;gap:12px;align-items:flex-start;margin-bottom:14px}
+.detail-photo{width:88px;height:88px;flex:none;object-fit:cover;border-radius:14px;background:#f3f4f6}
+.detail-title{font-size:21px;font-weight:850;line-height:1.3;margin:0}
+.detail-subtitle{font-size:13px;color:var(--muted);margin-top:4px}
+.detail-count{display:inline-block;margin-top:8px;padding:4px 8px;border-radius:999px;background:var(--soft);color:#1d4ed8;font-size:11px;font-weight:700}
+.detail-section{padding:12px 0;border-top:1px solid var(--line)}
+.detail-section h3{font-size:14px;margin:0 0 9px}
+.detail-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 14px}
+.detail-label{font-size:11px;color:var(--muted);margin-bottom:2px}
+.detail-value{font-size:13px;line-height:1.45;overflow-wrap:anywhere}
+.detail-wide{grid-column:1/-1}
+.detail-note{white-space:pre-wrap}
+.detail-latest{padding:10px;border-radius:11px;background:var(--bg)}
+.detail-latest-title{font-size:13px;font-weight:800}
+.detail-latest-meta{font-size:11px;color:var(--muted);margin:3px 0 6px}
+.detail-actions{display:grid;grid-template-columns:1fr 1fr 1.35fr;gap:8px;margin-top:14px}
+.detail-actions button{padding:11px 6px;font-size:14px}
 .batch-header{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px}
 .batch-header h2{margin:0}
 .batch-select-all{padding:8px 10px;font-size:13px}
@@ -202,7 +237,15 @@ textarea{min-height:76px;resize:vertical}
     <button id="calendarViewBtn">カレンダー</button>
   </div>
 
-  <div id="listView"><div id="plants"></div></div>
+  <div id="listView">
+    <div class="list-layout-toolbar">
+      <div class="list-layout-switch" role="group" aria-label="一覧の表示形式">
+        <button id="listLayoutBtn" class="active" aria-pressed="true">☰ リスト</button>
+        <button id="gridLayoutBtn" aria-pressed="false">▦ 2列</button>
+      </div>
+    </div>
+    <div id="plants"></div>
+  </div>
   <div id="calendarView" class="hidden">
     <div class="calendar-panel">
       <div class="calendar-toolbar">
@@ -416,6 +459,17 @@ textarea{min-height:76px;resize:vertical}
   </div>
 </dialog>
 
+<dialog id="plantDetailsDialog">
+  <div class="modal">
+    <div id="plantDetailsContent"></div>
+    <div class="detail-actions">
+      <button class="secondary" id="closePlantDetails">閉じる</button>
+      <button class="secondary" id="editPlantDetails">編集</button>
+      <button id="carePlantDetails">ケアを記録</button>
+    </div>
+  </div>
+</dialog>
+
 <dialog id="batchWaterDialog">
   <div class="modal">
     <div class="batch-header">
@@ -456,6 +510,7 @@ textarea{min-height:76px;resize:vertical}
 <script>
 const KEY='plant-care-log-v1';
 const WEATHER_KEY='plant-care-weather-v1';
+const LIST_LAYOUT_KEY='plant-care-list-layout-v1';
 const LEGACY_KEYS=['pachypodium-water-log-v2','pachypodium-water-log-v1'];
 
 function loadWeather(){
@@ -503,6 +558,8 @@ function loadData(){
 
 let data=loadData();
 let currentId=null;
+let detailPlantId=null;
+let listLayout=localStorage.getItem(LIST_LAYOUT_KEY)==='grid'?'grid':'list';
 const $=id=>document.getElementById(id);
 
 function save(){
@@ -543,8 +600,24 @@ function elapsed(ts){
   return {main:`${Math.max(0,mins)}分`,sub:'前回のケアから'};
 }
 
+function applyListLayout(){
+  const isGrid=listLayout==='grid';
+  $('plants').classList.toggle('grid-layout',isGrid);
+  $('listLayoutBtn').classList.toggle('active',!isGrid);
+  $('gridLayoutBtn').classList.toggle('active',isGrid);
+  $('listLayoutBtn').setAttribute('aria-pressed',String(!isGrid));
+  $('gridLayoutBtn').setAttribute('aria-pressed',String(isGrid));
+}
+
+function setListLayout(layout){
+  listLayout=layout==='grid'?'grid':'list';
+  localStorage.setItem(LIST_LAYOUT_KEY,listLayout);
+  applyListLayout();
+}
+
 function render(){
   const root=$('plants');
+  applyListLayout();
   if(!data.plants.length){
     root.innerHTML='<div class="card empty">まだ植物がありません。<br>「＋ 植物を追加」から登録してください。</div>';
     renderCalendarFilters();
@@ -554,7 +627,12 @@ function render(){
   root.innerHTML=data.plants.map(p=>{
     const last=p.logs?.[0];
     const e=elapsed(last?.time);
-    return `<div class="card">
+    const thumbnail=/^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(p.photo || '')
+      ?`<img class="plant-card-photo" src="${p.photo}" alt="">`:'';
+    return `<div class="card plant-card" role="button" tabindex="0"
+      aria-label="${esc(p.name)}の詳細を表示"
+      onclick="handlePlantCardClick('${p.id}',event)" onkeydown="handlePlantCardKey('${p.id}',event)">
+      ${thumbnail}
       <div class="row">
         <div>
           <div class="name">${esc(p.name)}</div>
@@ -578,12 +656,86 @@ function render(){
       </div>
       <div class="elapsed">${e.main} <span>${e.sub}</span></div>
       <div class="meta">前回：${fmtDate(last?.time)}</div>
-      <button class="care" onclick="openCare('${p.id}')">＋ ケアを記録</button>
+      <button class="care" onclick="event.stopPropagation();openCare('${p.id}')">＋ ケアを記録</button>
     </div>`;
   }).join('');
   renderCalendarFilters();
   if(!$('calendarView').classList.contains('hidden')) renderCalendar();
 }
+
+$('listLayoutBtn').onclick=()=>setListLayout('list');
+$('gridLayoutBtn').onclick=()=>setListLayout('grid');
+
+function handlePlantCardClick(id,event){
+  if(event.target.closest('button,.menu-panel')) return;
+  openPlantDetails(id);
+}
+
+function handlePlantCardKey(id,event){
+  if((event.key==='Enter' || event.key===' ') && !event.target.closest('button')){
+    event.preventDefault();
+    openPlantDetails(id);
+  }
+}
+
+function dateOnly(value){
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(value || '')) return esc(value || '未設定');
+  const [year,month,day]=value.split('-').map(Number);
+  return `${year}年${month}月${day}日`;
+}
+
+function detailItem(label,value,wide=false){
+  if(value===undefined || value===null || value==='') return '';
+  return `<div class="${wide?'detail-wide':''}"><div class="detail-label">${esc(label)}</div><div class="detail-value">${value}</div></div>`;
+}
+
+function openPlantDetails(id){
+  const p=data.plants.find(x=>String(x.id)===String(id));
+  if(!p) return;
+  detailPlantId=p.id;
+  const last=p.logs?.[0];
+  const validPhoto=/^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(p.photo || '');
+  const photo=validPhoto?`<img class="detail-photo" src="${p.photo}" alt="${esc(p.name)}の登録写真">`:'';
+  const price=p.price!=='' && p.price!==undefined && Number.isFinite(Number(p.price))
+    ?`${Number(p.price).toLocaleString('ja-JP')}円`:'';
+  const acquisition=[
+    detailItem('入手日',p.acquiredDate?dateOnly(p.acquiredDate):''),
+    detailItem('入手方法',p.acquisitionMethod?esc(p.acquisitionMethod):''),
+    detailItem('入手先',p.source?esc(p.source):''),
+    detailItem('購入価格',price),
+    detailItem('由来',p.origin?esc(p.origin):'')
+  ].join('');
+  const cultivation=[
+    detailItem('播種日',p.sowingDate?dateOnly(p.sowingDate):''),
+    detailItem('発芽日',p.germinationDate?dateOnly(p.germinationDate):''),
+    detailItem('管理場所',p.location?esc(p.location):''),
+    detailItem('雨の当たり方',p.rainExposure==='sheltered'?'雨が当たらない':'雨が当たる'),
+    detailItem('メモ',p.memo?`<span class="detail-note">${esc(p.memo)}</span>`:'',true)
+  ].join('');
+  const latest=last
+    ?`<div class="detail-latest"><div class="detail-latest-title">${esc(last.care || '水やり')}</div><div class="detail-latest-meta">${fmtDate(last.time)}</div><div class="detail-value">${careDetailHtml(last)}</div>${photoHtml(last.photo)}</div>`
+    :'<div class="detail-value">ケア履歴はまだありません。</div>';
+  $('plantDetailsContent').innerHTML=`
+    <div class="detail-hero">${photo}<div><h2 class="detail-title">${esc(p.name)}</h2>
+      <div class="detail-subtitle">${esc(p.stage || '成株')}${p.type?` ・ ${esc(p.type)}`:''}</div>
+      <span class="detail-count">ケア ${p.logs?.length || 0}回</span></div></div>
+    ${acquisition?`<section class="detail-section"><h3>入手情報</h3><div class="detail-grid">${acquisition}</div></section>`:''}
+    ${cultivation?`<section class="detail-section"><h3>栽培情報・メモ</h3><div class="detail-grid">${cultivation}</div></section>`:''}
+    <section class="detail-section"><h3>直近のケア</h3>${latest}</section>`;
+  $('plantDetailsDialog').showModal();
+}
+
+$('closePlantDetails').onclick=()=> $('plantDetailsDialog').close();
+$('editPlantDetails').onclick=()=>{
+  const id=detailPlantId;
+  $('plantDetailsDialog').close();
+  openPlantEditor(id);
+};
+$('carePlantDetails').onclick=()=>{
+  const id=detailPlantId;
+  $('plantDetailsDialog').close();
+  openCare(id);
+};
 
 let editingPlantId=null;
 let editingPlantPhoto='';
