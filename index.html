@@ -23,6 +23,9 @@ body{
 h1{font-size:24px;margin:4px 0 4px}
 .sub{color:var(--muted);font-size:13px;margin-bottom:16px}
 .toolbar{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
+.view-switch{display:grid;grid-template-columns:1fr 1fr;gap:4px;background:#e5e7eb;padding:4px;border-radius:14px;margin-bottom:14px}
+.view-switch button{background:transparent;color:var(--muted);padding:9px}
+.view-switch button.active{background:#fff;color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,.08)}
 button{
   border:0;border-radius:12px;padding:12px 14px;font-size:15px;font-weight:700;
   background:#111827;color:#fff;cursor:pointer
@@ -45,6 +48,36 @@ button.danger{background:#fff;color:var(--danger);border:1px solid #fecaca}
 .photo-preview{display:none;width:100%;max-height:240px;object-fit:contain;margin-top:10px;border-radius:12px;background:#f9fafb}
 .history-photo{display:block;width:100%;max-height:320px;object-fit:contain;margin-top:9px;border-radius:12px;background:#f9fafb}
 .hint{font-size:12px;color:var(--muted);margin-top:5px}
+.calendar-panel{background:var(--card);border-radius:16px;padding:12px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.calendar-toolbar{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px}
+.calendar-toolbar button{padding:9px 12px}
+.calendar-title{font-size:18px;font-weight:800;text-align:center;flex:1}
+.calendar-filters{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
+.calendar-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
+.weekday{text-align:center;color:var(--muted);font-size:12px;font-weight:700;padding:5px 0}
+.weekday:first-child{color:#dc2626}.weekday:nth-child(7){color:#2563eb}
+.calendar-day{
+  min-height:70px;padding:5px 3px;border:1px solid var(--line);border-radius:9px;
+  background:#fff;color:var(--text);font-weight:600;text-align:left;overflow:hidden
+}
+.calendar-day.other{opacity:.32}.calendar-day.today{border:2px solid var(--accent)}
+.calendar-day.selected{background:var(--soft)}
+.day-number{display:block;font-size:12px;margin-bottom:4px}
+.event-dots{display:flex;gap:3px;flex-wrap:wrap;align-items:center}
+.event-dot{width:8px;height:8px;border-radius:50%;display:inline-block}
+.event-dot.water{background:#2563eb}.event-dot.pesticide{background:#dc2626}
+.event-dot.repot{background:#92400e}.event-dot.fertilize{background:#16a34a}
+.event-dot.growth{background:#9333ea}.event-dot.planned{background:#fff;border:2px solid #dc2626;width:9px;height:9px}
+.photo-mark{font-size:10px;line-height:1}.more-mark{font-size:9px;color:var(--muted)}
+.calendar-legend{display:flex;gap:8px;flex-wrap:wrap;font-size:11px;color:var(--muted);margin:10px 2px}
+.legend-item{display:flex;align-items:center;gap:4px}
+.day-details{margin-top:12px;border-top:1px solid var(--line);padding-top:12px}
+.day-details h3{margin:0 0 8px;font-size:16px}
+.calendar-entry{padding:9px 0;border-bottom:1px solid var(--line)}
+.calendar-entry:last-child{border-bottom:0}
+.entry-title{font-weight:800;font-size:14px}.entry-meta{font-size:12px;color:var(--muted);margin-top:3px}
+.hidden{display:none!important}
+@media(max-width:420px){.calendar-day{min-height:62px}.calendar-panel{padding:9px}.calendar-filters{grid-template-columns:1fr}}
 .mini{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}
 .mini button{flex:1;min-width:110px;padding:10px;font-size:13px}
 .empty{text-align:center;color:var(--muted);padding:24px 10px}
@@ -87,7 +120,40 @@ textarea{min-height:76px;resize:vertical}
     <button class="secondary" id="exportBtn">バックアップ</button>
   </div>
 
-  <div id="plants"></div>
+  <div class="view-switch">
+    <button id="listViewBtn" class="active">一覧</button>
+    <button id="calendarViewBtn">カレンダー</button>
+  </div>
+
+  <div id="listView"><div id="plants"></div></div>
+  <div id="calendarView" class="hidden">
+    <div class="calendar-panel">
+      <div class="calendar-toolbar">
+        <button class="secondary" id="prevMonth" aria-label="前の月">‹</button>
+        <div id="calendarTitle" class="calendar-title"></div>
+        <button class="secondary" id="nextMonth" aria-label="次の月">›</button>
+      </div>
+      <div class="calendar-filters">
+        <select id="calendarPlantFilter" aria-label="植物で絞り込み"></select>
+        <select id="calendarCareFilter" aria-label="ケアの種類で絞り込み">
+          <option value="">すべてのケア</option>
+          <option>水やり</option><option>薬剤散布</option><option>植え替え</option>
+          <option>施肥</option><option>状態・写真記録</option>
+        </select>
+      </div>
+      <button class="secondary" id="todayBtn">今日へ戻る</button>
+      <div class="calendar-legend">
+        <span class="legend-item"><i class="event-dot water"></i>水やり</span>
+        <span class="legend-item"><i class="event-dot pesticide"></i>薬剤</span>
+        <span class="legend-item"><i class="event-dot repot"></i>植え替え</span>
+        <span class="legend-item"><i class="event-dot fertilize"></i>施肥</span>
+        <span class="legend-item"><i class="event-dot growth"></i>状態・写真</span>
+        <span class="legend-item"><i class="event-dot planned"></i>予定</span>
+      </div>
+      <div id="calendarGrid" class="calendar-grid"></div>
+      <div id="calendarDayDetails" class="day-details"></div>
+    </div>
+  </div>
 </div>
 
 <div id="toast" class="toast"></div>
@@ -286,6 +352,8 @@ function render(){
   const root=$('plants');
   if(!data.plants.length){
     root.innerHTML='<div class="card empty">まだ植物がありません。<br>「＋ 植物を追加」から登録してください。</div>';
+    renderCalendarFilters();
+    if(!$('calendarView').classList.contains('hidden')) renderCalendar();
     return;
   }
   root.innerHTML=data.plants.map(p=>{
@@ -309,6 +377,8 @@ function render(){
       </div>
     </div>`;
   }).join('');
+  renderCalendarFilters();
+  if(!$('calendarView').classList.contains('hidden')) renderCalendar();
 }
 
 $('addBtn').onclick=()=>{
@@ -501,6 +571,132 @@ function photoHtml(photo){
   if(!/^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(photo || '')) return '';
   return `<img class="history-photo" src="${photo}" alt="成長記録の写真">`;
 }
+
+const CARE_CLASSES={
+  '水やり':'water','薬剤散布':'pesticide','植え替え':'repot',
+  '施肥':'fertilize','状態・写真記録':'growth'
+};
+let calendarMonth=new Date(new Date().getFullYear(),new Date().getMonth(),1);
+let selectedCalendarDate=dateKey(new Date());
+
+function dateKey(date){
+  const y=date.getFullYear();
+  const m=String(date.getMonth()+1).padStart(2,'0');
+  const d=String(date.getDate()).padStart(2,'0');
+  return `${y}-${m}-${d}`;
+}
+
+function renderCalendarFilters(){
+  const select=$('calendarPlantFilter');
+  const current=select.value;
+  select.innerHTML='<option value="">すべての植物</option>'+data.plants.map(p=>
+    `<option value="${esc(p.id)}">${esc(p.name)}</option>`
+  ).join('');
+  if([...select.options].some(o=>o.value===current)) select.value=current;
+}
+
+function calendarEventsFor(date){
+  const plantId=$('calendarPlantFilter').value;
+  const careFilter=$('calendarCareFilter').value;
+  const events=[];
+  data.plants.filter(p=>!plantId || p.id===plantId).forEach(p=>{
+    (p.logs || []).forEach(log=>{
+      const care=log.care || '水やり';
+      if((!careFilter || care===careFilter) && dateKey(new Date(log.time))===date){
+        events.push({plant:p,log,care,planned:false});
+      }
+      if(care==='薬剤散布' && (!careFilter || careFilter==='薬剤散布') && log.details?.nextDate===date){
+        events.push({plant:p,log,care,planned:true});
+      }
+    });
+  });
+  return events.sort((a,b)=>Number(a.planned)-Number(b.planned) || b.log.time-a.log.time);
+}
+
+function renderCalendar(){
+  const year=calendarMonth.getFullYear();
+  const month=calendarMonth.getMonth();
+  $('calendarTitle').textContent=`${year}年 ${month+1}月`;
+  const first=new Date(year,month,1);
+  const start=new Date(year,month,1-first.getDay());
+  const today=dateKey(new Date());
+  const weekdays=['日','月','火','水','木','金','土'];
+  let html=weekdays.map(day=>`<div class="weekday">${day}</div>`).join('');
+
+  for(let i=0;i<42;i++){
+    const day=new Date(start);
+    day.setDate(start.getDate()+i);
+    const key=dateKey(day);
+    const events=calendarEventsFor(key);
+    const markers=events.slice(0,5).map(event=>{
+      if(event.planned) return '<i class="event-dot planned" title="予定"></i>';
+      const photo=event.log.photo ? '<span class="photo-mark">📷</span>' : '';
+      return `<i class="event-dot ${CARE_CLASSES[event.care] || 'growth'}"></i>${photo}`;
+    }).join('');
+    const more=events.length>5?`<span class="more-mark">+${events.length-5}</span>`:'';
+    const classes=['calendar-day'];
+    if(day.getMonth()!==month) classes.push('other');
+    if(key===today) classes.push('today');
+    if(key===selectedCalendarDate) classes.push('selected');
+    html+=`<button class="${classes.join(' ')}" onclick="selectCalendarDate('${key}')">
+      <span class="day-number">${day.getDate()}</span><span class="event-dots">${markers}${more}</span>
+    </button>`;
+  }
+  $('calendarGrid').innerHTML=html;
+  renderCalendarDayDetails();
+}
+
+function renderCalendarDayDetails(){
+  const events=calendarEventsFor(selectedCalendarDate);
+  const date=new Date(`${selectedCalendarDate}T00:00:00`);
+  const title=new Intl.DateTimeFormat('ja-JP',{month:'long',day:'numeric',weekday:'short'}).format(date);
+  $('calendarDayDetails').innerHTML=`<h3>${title}</h3>`+(events.length?events.map(event=>{
+    if(event.planned){
+      return `<div class="calendar-entry"><div class="entry-title">⏰ ${esc(event.plant.name)}・薬剤散布予定</div>
+        <div class="entry-meta">薬剤：${esc(event.log.details?.name || '未入力')} ／ 対象：${esc(event.log.details?.target || '未入力')}</div></div>`;
+    }
+    return `<div class="calendar-entry"><div class="entry-title">${esc(event.plant.name)}・${esc(event.care)}</div>
+      <div class="entry-meta">${careDetailHtml(event.log)}</div>${photoHtml(event.log.photo)}</div>`;
+  }).join(''):'<div class="empty">この日の記録・予定はありません。</div>');
+}
+
+window.selectCalendarDate=date=>{
+  selectedCalendarDate=date;
+  renderCalendar();
+};
+
+function setView(view){
+  const calendar=view==='calendar';
+  $('listView').classList.toggle('hidden',calendar);
+  $('calendarView').classList.toggle('hidden',!calendar);
+  $('listViewBtn').classList.toggle('active',!calendar);
+  $('calendarViewBtn').classList.toggle('active',calendar);
+  if(calendar){
+    renderCalendarFilters();
+    renderCalendar();
+  }
+}
+
+$('listViewBtn').onclick=()=>setView('list');
+$('calendarViewBtn').onclick=()=>setView('calendar');
+$('prevMonth').onclick=()=>{
+  calendarMonth=new Date(calendarMonth.getFullYear(),calendarMonth.getMonth()-1,1);
+  selectedCalendarDate=dateKey(calendarMonth);
+  renderCalendar();
+};
+$('nextMonth').onclick=()=>{
+  calendarMonth=new Date(calendarMonth.getFullYear(),calendarMonth.getMonth()+1,1);
+  selectedCalendarDate=dateKey(calendarMonth);
+  renderCalendar();
+};
+$('todayBtn').onclick=()=>{
+  const today=new Date();
+  calendarMonth=new Date(today.getFullYear(),today.getMonth(),1);
+  selectedCalendarDate=dateKey(today);
+  renderCalendar();
+};
+$('calendarPlantFilter').onchange=renderCalendar;
+$('calendarCareFilter').onchange=renderCalendar;
 
 window.showHistory=id=>{
   const p=data.plants.find(x=>x.id===id);
