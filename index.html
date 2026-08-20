@@ -739,7 +739,7 @@ window.quickWater=id=>{
   if(!p) return;
   if(!Array.isArray(p.logs)) p.logs=[];
   const now=Date.now();
-  if(p.logs[0] && now-p.logs[0].time<=10000){
+  if(p.logs.some(log=>Math.abs(now-Number(log.time))<=10000)){
     toast('10秒以内に記録済みのため、重複を防止しました');
     return;
   }
@@ -751,8 +751,9 @@ window.quickWater=id=>{
     note:'一覧の水やりボタンから記録'
   };
   p.logs.unshift(log);
+  p.logs.sort((a,b)=>b.time-a.time);
   if(save()) toast(`💧 ${p.name} の水やりを記録しました`);
-  else p.logs.shift();
+  else p.logs=p.logs.filter(item=>item!==log);
 };
 
 $('listLayoutBtn').onclick=()=>setListLayout('list');
