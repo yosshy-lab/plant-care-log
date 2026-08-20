@@ -231,7 +231,7 @@ textarea{min-height:76px;resize:vertical}
       </div>
       <div id="calendarGrid" class="calendar-grid"></div>
       <div id="calendarDayDetails" class="day-details"></div>
-      <div class="weather-attribution">天気データ：<a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a></div>
+      <div class="weather-attribution">天気：<a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a> ／ 所在地：<a href="https://maps.gsi.go.jp/" target="_blank" rel="noopener">国土地理院</a></div>
     </div>
   </div>
 </div>
@@ -445,7 +445,7 @@ textarea{min-height:76px;resize:vertical}
       <option value="5">5mm以上</option><option value="10">10mm以上</option>
       <option value="15">15mm以上</option><option value="20">20mm以上</option>
     </select>
-    <div class="hint">位置情報はこの端末内だけに保存され、バックアップには含まれません。天気の取得時のみ、丸めた緯度・経度をOpen-Meteoへ送信します。</div>
+    <div class="hint">位置情報と市区町村名はこの端末内だけに保存され、バックアップには含まれません。丸めた緯度・経度を天気取得時はOpen-Meteo、市区町村の確認時は国土地理院へ送信します。</div>
     <div class="actions">
       <button class="secondary" id="cancelWeather">キャンセル</button>
       <button id="saveWeather">設定を保存</button>
@@ -459,7 +459,7 @@ const WEATHER_KEY='plant-care-weather-v1';
 const LEGACY_KEYS=['pachypodium-water-log-v2','pachypodium-water-log-v1'];
 
 function loadWeather(){
-  const defaults={latitude:null,longitude:null,accuracy:null,displayThreshold:1,equivalentThreshold:10,days:{},lastUpdated:0};
+  const defaults={latitude:null,longitude:null,accuracy:null,cityName:'',municipalityCode:'',cityLookupAttemptedAt:0,displayThreshold:1,equivalentThreshold:10,days:{},lastUpdated:0};
   try{
     const saved=JSON.parse(localStorage.getItem(WEATHER_KEY) || 'null');
     if(!saved || typeof saved!=='object') return defaults;
@@ -920,6 +920,10 @@ function rainLabelForDate(date){
   return date>=dateKey(new Date())?'降水予報':'降雨';
 }
 
+function weatherCitySuffix(){
+  return weather.cityName?`（${esc(weather.cityName)}）`:'';
+}
+
 function renderCalendarFilters(){
   const select=$('calendarPlantFilter');
   const current=select.value;
@@ -963,7 +967,7 @@ function renderCalendar(){
     const key=dateKey(day);
     const events=calendarEventsFor(key);
     const rain=rainfallForDate(key);
-    const rainMarker=rain===null?'':`<i class="event-dot ${rain>=Number(weather.equivalentThreshold)?'rain-equivalent':'rain'}" title="${rainLabelForDate(key)} ${rain.toFixed(1)}mm"></i>`;
+    const rainMarker=rain===null?'':`<i class="event-dot ${rain>=Number(weather.equivalentThreshold)?'rain-equivalent':'rain'}" title="${rainLabelForDate(key)} ${rain.toFixed(1)}mm${weatherCitySuffix()}"></i>`;
     const eventLimit=rain===null?5:4;
     const markers=events.slice(0,eventLimit).map(event=>{
       if(event.planned) return '<i class="event-dot planned" title="予定"></i>';
@@ -991,7 +995,7 @@ function renderCalendarDayDetails(){
   const date=new Date(`${selectedCalendarDate}T00:00:00`);
   const title=new Intl.DateTimeFormat('ja-JP',{month:'long',day:'numeric',weekday:'short'}).format(date);
   const rainHtml=rain===null?'':`<div class="calendar-entry rain-entry">
-    <div class="entry-title">☔ ${rainLabelForDate(selectedCalendarDate)} ${rain.toFixed(1)}mm</div>
+    <div class="entry-title">☔ ${rainLabelForDate(selectedCalendarDate)} ${rain.toFixed(1)}mm${weatherCitySuffix()}</div>
     <div class="entry-meta">${equivalent?'水やり相当候補です。雨が当たる株を選んで記録できます。':'設定した水やり相当量には達していません。'}</div>
     ${equivalent && isPast?`<button class="rain-action" onclick="openRainWatering('${selectedCalendarDate}',${rain})">雨を水やり扱いにする</button>`:''}
   </div>`;
@@ -1234,6 +1238,44 @@ document.addEventListener('keydown',e=>{
 
 let weatherDraft=null;
 
+async function resolveMunicipalityName(latitude,longitude){
+  const params=new URLSearchParams({lat:String(latitude),lon:String(longitude)});
+  const addressResponse=await fetch(`https://mreversegeocoder.gsi.go.jp/reverse-geocoder/LonLatToAddress?${params}`);
+  if(!addressResponse.ok) throw new Error(`reverse geocoder ${addressResponse.status}`);
+  const address=await addressResponse.json();
+  const municipalityCode=String(address.results?.muniCd || '').replace(/\D/g,'');
+  if(!municipalityCode) throw new Error('municipality code not found');
+
+  const municipalitiesResponse=await fetch('https://maps.gsi.go.jp/js/muni.js',{cache:'force-cache'});
+  if(!municipalitiesResponse.ok) throw new Error(`municipalities ${municipalitiesResponse.status}`);
+  const municipalities=await municipalitiesResponse.text();
+  const target=`GSI.MUNI_ARRAY["${municipalityCode}"]`;
+  const line=municipalities.split('\n').find(item=>item.includes(target));
+  const values=line?.match(/'([^']+)'/)?.[1]?.split(',');
+  const cityName=values?.slice(3).join(',').trim().replace(/\u3000+/g,' ');
+  if(!cityName) throw new Error('municipality name not found');
+  return {cityName,municipalityCode};
+}
+
+async function refreshStoredMunicipality(){
+  if(!hasWeatherLocation(weather) || weather.cityName) return;
+  if(Date.now()-Number(weather.cityLookupAttemptedAt)<24*60*60*1000) return;
+  weather={...weather,cityLookupAttemptedAt:Date.now()};
+  saveWeatherLocal();
+  try{
+    const municipality=await resolveMunicipalityName(weather.latitude,weather.longitude);
+    weather={...weather,...municipality};
+    saveWeatherLocal();
+    if($('weatherDialog').open){
+      weatherDraft={...weather,days:{...weather.days}};
+      updateWeatherDialogStatus();
+    }
+    if(!$('calendarView').classList.contains('hidden')) renderCalendar();
+  }catch(e){
+    console.warn('市区町村名を取得できませんでした',e);
+  }
+}
+
 function weatherStatusText(settings){
   if(!hasWeatherLocation(settings)){
     return '現在地は未設定です。取得すると降水量をカレンダーに表示できます。';
@@ -1242,7 +1284,8 @@ function weatherStatusText(settings){
     ?`天気の最終更新：${fmtDate(settings.lastUpdated)}`
     :'天気データはまだ取得していません。';
   const accuracy=settings.accuracy?`（位置精度 約${Math.round(settings.accuracy)}m）`:'';
-  return `現在地を設定済みです${accuracy}\n${updated}`;
+  const place=settings.cityName?`現在地：${settings.cityName}`:'現在地：市区町村名を確認できません';
+  return `${place}${accuracy}\n${updated}`;
 }
 
 function updateWeatherDialogStatus(message){
@@ -1256,6 +1299,7 @@ function openWeatherSettings(){
   $('rainEquivalentThreshold').value=String(weather.equivalentThreshold);
   $('getLocationBtn').disabled=false;
   $('getLocationBtn').textContent=hasWeatherLocation(weatherDraft)?'現在地を再取得':'現在地を取得';
+  $('saveWeather').disabled=false;
   updateWeatherDialogStatus();
   $('weatherDialog').showModal();
 }
@@ -1300,21 +1344,36 @@ $('getLocationBtn').onclick=()=>{
   }
   $('getLocationBtn').disabled=true;
   $('getLocationBtn').textContent='現在地を取得中…';
-  navigator.geolocation.getCurrentPosition(position=>{
+  $('saveWeather').disabled=true;
+  navigator.geolocation.getCurrentPosition(async position=>{
     weatherDraft={
       ...(weatherDraft || weather),
       latitude:Number(position.coords.latitude.toFixed(4)),
       longitude:Number(position.coords.longitude.toFixed(4)),
-      accuracy:position.coords.accuracy
+      accuracy:position.coords.accuracy,
+      cityName:'',
+      municipalityCode:'',
+      cityLookupAttemptedAt:Date.now()
     };
-    updateWeatherDialogStatus('現在地を取得しました。設定を保存すると天気データを更新します。');
-    $('getLocationBtn').disabled=false;
-    $('getLocationBtn').textContent='現在地を再取得';
+    updateWeatherDialogStatus('現在地を取得しました。市区町村名を確認中…');
+    try{
+      const municipality=await resolveMunicipalityName(weatherDraft.latitude,weatherDraft.longitude);
+      weatherDraft={...weatherDraft,...municipality};
+      updateWeatherDialogStatus(`現在地：${municipality.cityName}\n設定を保存すると天気データを更新します。`);
+    }catch(e){
+      console.warn('市区町村名を取得できませんでした',e);
+      updateWeatherDialogStatus('現在地は取得しましたが、市区町村名を確認できませんでした。通信状態を確認して再取得してください。');
+    }finally{
+      $('getLocationBtn').disabled=false;
+      $('getLocationBtn').textContent='現在地を再取得';
+      $('saveWeather').disabled=false;
+    }
   },error=>{
     const messages={1:'位置情報の利用が許可されませんでした。iPhoneまたはブラウザの設定をご確認ください。',2:'現在地を取得できませんでした。',3:'現在地の取得がタイムアウトしました。'};
     updateWeatherDialogStatus(messages[error.code] || '現在地を取得できませんでした。');
     $('getLocationBtn').disabled=false;
     $('getLocationBtn').textContent='現在地を取得';
+    $('saveWeather').disabled=false;
   },{enableHighAccuracy:false,timeout:15000,maximumAge:10*60*1000});
 };
 $('cancelWeather').onclick=()=>{
@@ -1435,6 +1494,7 @@ function autoRecordFromUrl(){
 
 autoRecordFromUrl();
 render();
+refreshStoredMunicipality();
 refreshWeather();
 </script>
 </body>
