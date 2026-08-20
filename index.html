@@ -6,8 +6,8 @@
 <meta name="theme-color" content="#111827">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="水やり記録">
-<title>パキポディウム 水やり記録</title>
+<meta name="apple-mobile-web-app-title" content="植物ケア記録">
+<title>植物ケア記録</title>
 <style>
 :root{
   --bg:#f3f4f6;--card:#fff;--text:#111827;--muted:#6b7280;
@@ -38,7 +38,8 @@ button.danger{background:#fff;color:var(--danger);border:1px solid #fecaca}
 .meta{font-size:13px;color:var(--muted);margin-top:4px}
 .elapsed{font-size:27px;font-weight:900;margin:12px 0 4px}
 .elapsed span{font-size:13px;color:var(--muted);font-weight:600}
-.water{width:100%;background:var(--accent);font-size:17px;padding:14px;margin-top:10px}
+.care{width:100%;background:var(--accent);font-size:17px;padding:14px;margin-top:10px}
+.water-fields[hidden]{display:none}
 .mini{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}
 .mini button{flex:1;min-width:110px;padding:10px;font-size:13px}
 .empty{text-align:center;color:var(--muted);padding:24px 10px}
@@ -73,11 +74,11 @@ textarea{min-height:76px;resize:vertical}
 </head>
 <body>
 <div class="wrap">
-  <h1>🌵 パキポディウム 水やり記録</h1>
-  <div class="sub">記録はこのiPhoneのブラウザ内に保存されます。</div>
+  <h1>🌿 植物ケア記録</h1>
+  <div class="sub">植物ごとのお世話を、このブラウザ内に記録できます。</div>
 
   <div class="toolbar">
-    <button id="addBtn">＋ 株を追加</button>
+    <button id="addBtn">＋ 植物を追加</button>
     <button class="secondary" id="exportBtn">バックアップ</button>
   </div>
 
@@ -88,9 +89,9 @@ textarea{min-height:76px;resize:vertical}
 
 <dialog id="plantDialog">
   <div class="modal">
-    <h2>株を追加</h2>
-    <label>株名</label>
-    <input id="plantName" placeholder="例：恵比寿大黒 ①">
+    <h2>植物を追加</h2>
+    <label>植物名</label>
+    <input id="plantName" placeholder="例：パキポディウム ①">
     <label>区分</label>
     <select id="plantStage">
       <option>成株</option>
@@ -106,26 +107,38 @@ textarea{min-height:76px;resize:vertical}
   </div>
 </dialog>
 
-<dialog id="waterDialog">
+<dialog id="careDialog">
   <div class="modal">
-    <h2 id="waterTitle">水やり記録</h2>
-    <label>水やり方法</label>
-    <select id="waterType">
-      <option>たっぷり灌水</option>
-      <option>通常</option>
-      <option>軽く水やり</option>
-      <option>霧吹き</option>
+    <h2 id="careTitle">ケア記録</h2>
+    <label>ケアの種類</label>
+    <select id="careType">
+      <option>水やり</option>
+      <option>植え替え</option>
+      <option>施肥</option>
+      <option>剪定</option>
+      <option>薬剤散布</option>
+      <option>成長記録</option>
+      <option>その他</option>
     </select>
-    <label>液肥</label>
-    <select id="fertilizer">
-      <option>なし</option>
-      <option>あり</option>
-    </select>
+    <div id="waterFields" class="water-fields">
+      <label>水やり方法</label>
+      <select id="waterType">
+        <option>たっぷり灌水</option>
+        <option>通常</option>
+        <option>軽く水やり</option>
+        <option>霧吹き</option>
+      </select>
+      <label>液肥</label>
+      <select id="fertilizer">
+        <option>なし</option>
+        <option>あり</option>
+      </select>
+    </div>
     <label>メモ（任意）</label>
-    <textarea id="waterNote" placeholder="例：朝に灌水、葉の状態良好"></textarea>
+    <textarea id="waterNote" placeholder="例：朝に灌水、植え替え後の状態良好"></textarea>
     <div class="actions">
-      <button class="secondary" id="cancelWater">キャンセル</button>
-      <button id="saveWater">💧 記録する</button>
+      <button class="secondary" id="cancelCare">キャンセル</button>
+      <button id="saveCare">記録する</button>
     </div>
   </div>
 </dialog>
@@ -139,8 +152,37 @@ textarea{min-height:76px;resize:vertical}
 </dialog>
 
 <script>
-const KEY='pachypodium-water-log-v2';
-let data = JSON.parse(localStorage.getItem(KEY) || '{"plants":[]}');
+const KEY='plant-care-log-v1';
+const LEGACY_KEYS=['pachypodium-water-log-v2','pachypodium-water-log-v1'];
+
+function readStoredData(key){
+  const value=localStorage.getItem(key);
+  if(!value) return null;
+  try{
+    const parsed=JSON.parse(value);
+    return parsed && Array.isArray(parsed.plants) ? parsed : null;
+  }catch(e){
+    console.warn(`保存データを読み込めませんでした: ${key}`, e);
+    return null;
+  }
+}
+
+function loadData(){
+  const current=readStoredData(KEY);
+  if(current) return current;
+
+  for(const legacyKey of LEGACY_KEYS){
+    const legacy=readStoredData(legacyKey);
+    if(legacy){
+      localStorage.setItem(KEY, JSON.stringify(legacy));
+      return legacy;
+    }
+  }
+
+  return {plants:[]};
+}
+
+let data=loadData();
 let currentId=null;
 const $=id=>document.getElementById(id);
 
@@ -166,20 +208,20 @@ function fmtDate(ts){
   }).format(d);
 }
 function elapsed(ts){
-  if(!ts) return {main:'未記録',sub:'最初の水やりを記録してください'};
+  if(!ts) return {main:'未記録',sub:'最初のケアを記録してください'};
   const diff=Date.now()-ts;
   const days=Math.floor(diff/86400000);
   const hours=Math.floor(diff/3600000);
   const mins=Math.floor(diff/60000);
-  if(days>=1) return {main:`${days}日`,sub:'前回の水やりから'};
-  if(hours>=1) return {main:`${hours}時間`,sub:'前回の水やりから'};
-  return {main:`${Math.max(0,mins)}分`,sub:'前回の水やりから'};
+  if(days>=1) return {main:`${days}日`,sub:'前回のケアから'};
+  if(hours>=1) return {main:`${hours}時間`,sub:'前回のケアから'};
+  return {main:`${Math.max(0,mins)}分`,sub:'前回のケアから'};
 }
 
 function render(){
   const root=$('plants');
   if(!data.plants.length){
-    root.innerHTML='<div class="card empty">まだ株がありません。<br>「＋ 株を追加」から登録してください。</div>';
+    root.innerHTML='<div class="card empty">まだ植物がありません。<br>「＋ 植物を追加」から登録してください。</div>';
     return;
   }
   root.innerHTML=data.plants.map(p=>{
@@ -195,10 +237,10 @@ function render(){
       </div>
       <div class="elapsed">${e.main} <span>${e.sub}</span></div>
       <div class="meta">前回：${fmtDate(last?.time)}</div>
-      <button class="water" onclick="openWater('${p.id}')">💧 水やりした</button>
+      <button class="care" onclick="openCare('${p.id}')">＋ ケアを記録</button>
       <div class="mini">
         <button class="secondary" onclick="showHistory('${p.id}')">履歴</button>
-        <button class="secondary" onclick="copyShortcutUrl('${p.id}')">ショートカットURL</button>
+        <button class="secondary" onclick="copyShortcutUrl('${p.id}')">水やりショートカット</button>
         <button class="danger" onclick="removePlant('${p.id}')">削除</button>
       </div>
     </div>`;
@@ -214,7 +256,7 @@ $('addBtn').onclick=()=>{
 $('cancelPlant').onclick=()=> $('plantDialog').close();
 $('savePlant').onclick=()=>{
   const name=$('plantName').value.trim();
-  if(!name) return alert('株名を入力してください');
+  if(!name) return alert('植物名を入力してください');
   data.plants.push({
     id:crypto.randomUUID(),
     name,
@@ -226,25 +268,34 @@ $('savePlant').onclick=()=>{
   save();
 };
 
-window.openWater=id=>{
+function toggleWaterFields(){
+  $('waterFields').hidden=$('careType').value!=='水やり';
+}
+
+window.openCare=id=>{
   currentId=id;
   const p=data.plants.find(x=>x.id===id);
-  $('waterTitle').textContent=`${p.name} の水やり`;
+  $('careTitle').textContent=`${p.name} のケア記録`;
+  $('careType').value='水やり';
   $('waterType').value='たっぷり灌水';
   $('fertilizer').value='なし';
   $('waterNote').value='';
-  $('waterDialog').showModal();
+  toggleWaterFields();
+  $('careDialog').showModal();
 };
-$('cancelWater').onclick=()=> $('waterDialog').close();
-$('saveWater').onclick=()=>{
+$('careType').onchange=toggleWaterFields;
+$('cancelCare').onclick=()=> $('careDialog').close();
+$('saveCare').onclick=()=>{
   const p=data.plants.find(x=>x.id===currentId);
+  const care=$('careType').value;
   p.logs.unshift({
     time:Date.now(),
-    type:$('waterType').value,
-    fertilizer:$('fertilizer').value,
+    care,
+    type:care==='水やり' ? $('waterType').value : care,
+    fertilizer:care==='水やり' ? $('fertilizer').value : 'なし',
     note:$('waterNote').value.trim()
   });
-  $('waterDialog').close();
+  $('careDialog').close();
   save();
 };
 
@@ -253,8 +304,8 @@ window.showHistory=id=>{
   $('historyTitle').textContent=`${p.name} の履歴`;
   $('historyList').innerHTML=(p.logs?.length?p.logs.map((l,i)=>`
     <div class="history-item">
-      <div class="history-title">${fmtDate(l.time)} ・ ${esc(l.type)}</div>
-      <div class="history-note">液肥：${esc(l.fertilizer)}${l.note?` ／ ${esc(l.note)}`:''}</div>
+      <div class="history-title">${fmtDate(l.time)} ・ ${esc(l.care || '水やり')}${l.care==='水やり'||!l.care?`（${esc(l.type)}）`:''}</div>
+      <div class="history-note">${l.care==='水やり'||!l.care?`液肥：${esc(l.fertilizer)}${l.note?' ／ ':''}`:''}${l.note?esc(l.note):''}</div>
       <button class="danger" style="margin-top:7px;padding:7px 10px;font-size:12px"
         onclick="removeLog('${id}',${i})">この記録を削除</button>
     </div>`).join(''):'<div class="empty">履歴はまだありません。</div>');
@@ -276,13 +327,13 @@ window.copyShortcutUrl=async id=>{
 
 window.removePlant=id=>{
   const p=data.plants.find(x=>x.id===id);
-  if(confirm(`「${p.name}」を削除しますか？\n水やり履歴も削除されます。`)){
+  if(confirm(`「${p.name}」を削除しますか？\nケア履歴も削除されます。`)){
     data.plants=data.plants.filter(x=>x.id!==id);
     save();
   }
 };
 window.removeLog=(id,index)=>{
-  if(!confirm('この水やり記録を削除しますか？')) return;
+  if(!confirm('このケア記録を削除しますか？')) return;
   const p=data.plants.find(x=>x.id===id);
   p.logs.splice(index,1);
   save();
@@ -293,7 +344,7 @@ $('exportBtn').onclick=()=>{
   const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
   const a=document.createElement('a');
   a.href=URL.createObjectURL(blob);
-  a.download='pachypodium-water-log-backup.json';
+  a.download='plant-care-log-backup.json';
   a.click();
   URL.revokeObjectURL(a.href);
 };
@@ -317,6 +368,7 @@ function autoRecordFromUrl(){
   if(!last || now-last.time>10000){
     p.logs.unshift({
       time:now,
+      care:'水やり',
       type:'通常',
       fertilizer:'なし',
       note:'iPhoneショートカットから自動記録'
