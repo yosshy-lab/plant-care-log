@@ -61,7 +61,10 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .meta{font-size:13px;color:var(--muted);margin-top:4px}
 .elapsed{font-size:27px;font-weight:900;margin:12px 0 4px}
 .elapsed span{font-size:13px;color:var(--muted);font-weight:600}
-.care{width:100%;background:var(--accent);font-size:17px;padding:14px;margin-top:10px}
+.care-actions{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,.72fr);gap:7px;margin-top:10px}
+.care{width:100%;background:var(--accent);font-size:16px;padding:13px 8px}
+.quick-water{width:100%;background:#0e7490;font-size:16px;padding:13px 8px}
+.top-batch-water{background:#0e7490}
 .list-layout-toolbar{display:flex;justify-content:flex-end;margin:-4px 0 10px}
 .list-layout-switch{display:grid;grid-template-columns:1fr 1fr;gap:3px;padding:3px;background:#e5e7eb;border-radius:12px}
 .list-layout-switch button{padding:7px 11px;background:transparent;color:var(--muted);font-size:13px;border-radius:9px}
@@ -81,7 +84,8 @@ button:disabled{opacity:.45;cursor:not-allowed}
 #plants.grid-layout .elapsed{min-height:2.7em;font-size:22px;line-height:1.2;margin:11px 0 4px}
 #plants.grid-layout .elapsed span{display:block;font-size:10px;margin-top:2px}
 #plants.grid-layout .elapsed+.meta{min-height:2.7em}
-#plants.grid-layout .care{font-size:13px;padding:10px 6px;margin-top:auto}
+#plants.grid-layout .care-actions{gap:5px;margin-top:auto}
+#plants.grid-layout .care,#plants.grid-layout .quick-water{font-size:11px;padding:10px 3px;white-space:nowrap}
 .care-fields[hidden]{display:none}
 .check-row{display:flex;align-items:center;gap:8px;margin-top:10px;color:var(--text);font-size:14px}
 .check-row input{width:auto}
@@ -248,6 +252,7 @@ textarea{min-height:76px;resize:vertical}
 
   <div class="toolbar">
     <button id="addBtn">＋ 植物を追加</button>
+    <button class="top-batch-water" id="topBatchWaterBtn">💧 まとめて水やり</button>
   </div>
   <input id="importFile" type="file" accept="application/json,.json" hidden>
 
@@ -306,7 +311,7 @@ textarea{min-height:76px;resize:vertical}
     <div class="help-intro">塊根植物ごとの情報と、水やり・薬剤散布・植え替えなどのケアを記録するアプリです。データは基本的に、この端末のブラウザ内へ保存されます。</div>
     <ol class="help-steps" aria-label="基本的な使い方">
       <li><strong>植物を登録</strong><br>「＋ 植物を追加」から管理名や生育区分を入力します。</li>
-      <li><strong>ケアを記録</strong><br>植物カードの「＋ ケアを記録」から、お世話の内容を保存します。</li>
+      <li><strong>ケアを記録</strong><br>植物カードから各種ケアを選ぶか、「水やり」で素早く記録します。</li>
       <li><strong>詳細を確認</strong><br>植物カードをタップすると、登録情報・直近のケア・管理メニューを確認できます。</li>
     </ol>
 
@@ -321,6 +326,7 @@ textarea{min-height:76px;resize:vertical}
       <summary>ケア記録と履歴</summary>
       <div class="help-section-body">
         <p>水やり、薬剤散布、植え替え、施肥、状態・写真記録に対応しています。</p>
+        <p>植物カードの「水やり」は、通常の水やり・液肥なしとしてすぐに記録します。詳しい内容を残す場合は「＋ ケアを記録」を使用してください。</p>
         <p>過去の記録は植物の詳細画面下部にある「履歴を見る」から確認・削除できます。</p>
       </div>
     </details>
@@ -718,12 +724,36 @@ function render(){
       </div>
       <div class="elapsed">${e.main} <span>${e.sub}</span></div>
       <div class="meta">前回：${fmtDate(last?.time)}</div>
-      <button class="care" onclick="event.stopPropagation();openCare('${p.id}')">＋ ケアを記録</button>
+      <div class="care-actions">
+        <button class="care" onclick="event.stopPropagation();openCare('${p.id}')">＋ ケアを記録</button>
+        <button class="quick-water" onclick="event.stopPropagation();quickWater('${p.id}')">💧 水やり</button>
+      </div>
     </div>`;
   }).join('');
   renderCalendarFilters();
   if(!$('calendarView').classList.contains('hidden')) renderCalendar();
 }
+
+window.quickWater=id=>{
+  const p=data.plants.find(x=>String(x.id)===String(id));
+  if(!p) return;
+  if(!Array.isArray(p.logs)) p.logs=[];
+  const now=Date.now();
+  if(p.logs[0] && now-p.logs[0].time<=10000){
+    toast('10秒以内に記録済みのため、重複を防止しました');
+    return;
+  }
+  const log={
+    time:now,
+    care:'水やり',
+    type:'通常',
+    fertilizer:'なし',
+    note:'一覧の水やりボタンから記録'
+  };
+  p.logs.unshift(log);
+  if(save()) toast(`💧 ${p.name} の水やりを記録しました`);
+  else p.logs.shift();
+};
 
 $('listLayoutBtn').onclick=()=>setListLayout('list');
 $('gridLayoutBtn').onclick=()=>setListLayout('grid');
@@ -1651,6 +1681,7 @@ $('importFile').onchange=async()=>{
   }
 };
 
+$('topBatchWaterBtn').onclick=()=>openBatchWatering();
 $('batchWaterBtn').onclick=()=>openBatchWatering();
 $('batchShortcutBtn').onclick=async()=>{
   closeDataMenu();
