@@ -24,6 +24,20 @@ body{
 .wrap{max-width:680px;margin:0 auto}
 h1{font-size:24px;margin:4px 0 4px}
 .sub{color:var(--muted);font-size:13px;margin-bottom:16px}
+.app-header{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.app-header-main{min-width:0}
+.menu-wrap{position:relative;flex:none}
+.menu-button{font-size:22px;line-height:1;padding:8px 12px;min-width:44px}
+.menu-panel{
+  position:absolute;right:0;top:calc(100% + 6px);z-index:20;width:210px;
+  padding:6px;background:#fff;border:1px solid var(--line);border-radius:14px;
+  box-shadow:0 12px 32px rgba(0,0,0,.18)
+}
+.menu-panel button{
+  display:block;width:100%;padding:11px 12px;border-radius:9px;
+  background:#fff;color:var(--text);text-align:left;font-size:14px
+}
+.menu-panel button:active{background:var(--bg)}
 .toolbar{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
 .view-switch{display:grid;grid-template-columns:1fr 1fr;gap:4px;background:#e5e7eb;padding:4px;border-radius:14px;margin-bottom:14px}
 .view-switch button{background:transparent;color:var(--muted);padding:9px}
@@ -114,13 +128,24 @@ textarea{min-height:76px;resize:vertical}
 </head>
 <body>
 <div class="wrap">
-  <h1>🌿 植物ケア記録</h1>
-  <div class="sub">植物ごとのお世話を、このブラウザ内に記録できます。</div>
+  <div class="app-header">
+    <div class="app-header-main">
+      <h1>🌿 植物ケア記録</h1>
+      <div class="sub">植物ごとのお世話を、このブラウザ内に記録できます。</div>
+    </div>
+    <div class="menu-wrap" id="menuWrap">
+      <button class="secondary menu-button" id="menuBtn" aria-label="メニュー" aria-haspopup="true" aria-expanded="false">⋯</button>
+      <div class="menu-panel" id="dataMenu" role="menu" hidden>
+        <button id="exportBtn" role="menuitem">バックアップを保存</button>
+        <button id="importBtn" role="menuitem">バックアップから復元</button>
+      </div>
+    </div>
+  </div>
 
   <div class="toolbar">
     <button id="addBtn">＋ 植物を追加</button>
-    <button class="secondary" id="exportBtn">バックアップ</button>
   </div>
+  <input id="importFile" type="file" accept="application/json,.json" hidden>
 
   <div class="view-switch">
     <button id="listViewBtn" class="active">一覧</button>
@@ -742,13 +767,74 @@ window.removeLog=(id,index)=>{
   showHistory(id);
 };
 
+$('menuBtn').onclick=e=>{
+  e.stopPropagation();
+  const willOpen=$('dataMenu').hidden;
+  $('dataMenu').hidden=!willOpen;
+  $('menuBtn').setAttribute('aria-expanded',String(willOpen));
+};
+
+function closeDataMenu(){
+  $('dataMenu').hidden=true;
+  $('menuBtn').setAttribute('aria-expanded','false');
+}
+
+document.addEventListener('click',e=>{
+  if(!$('menuWrap').contains(e.target)) closeDataMenu();
+});
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape') closeDataMenu();
+});
+
 $('exportBtn').onclick=()=>{
+  closeDataMenu();
   const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
   const a=document.createElement('a');
   a.href=URL.createObjectURL(blob);
   a.download='plant-care-log-backup.json';
   a.click();
-  URL.revokeObjectURL(a.href);
+  setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+};
+
+$('importBtn').onclick=()=>{
+  closeDataMenu();
+  $('importFile').click();
+};
+
+$('importFile').onchange=async()=>{
+  const file=$('importFile').files[0];
+  if(!file) return;
+
+  try{
+    const restored=JSON.parse(await file.text());
+    const valid=restored && Array.isArray(restored.plants) && restored.plants.every(p=>
+      p && typeof p==='object' &&
+      (typeof p.id==='string' || typeof p.id==='number') &&
+      typeof p.name==='string' &&
+      (!('logs' in p) || Array.isArray(p.logs))
+    );
+    if(!valid) throw new Error('invalid backup');
+
+    const currentCount=data.plants.length;
+    const restoredCount=restored.plants.length;
+    if(!confirm(
+      `現在の${currentCount}株のデータを、バックアップの${restoredCount}株で上書きします。\n復元しますか？`
+    )) return;
+
+    restored.plants.forEach(p=>{ if(!Array.isArray(p.logs)) p.logs=[]; });
+    const previous=data;
+    data=restored;
+    if(save()){
+      toast(`${restoredCount}株のデータを復元しました`);
+    }else{
+      data=previous;
+      render();
+    }
+  }catch(e){
+    alert('バックアップファイルを読み込めませんでした。植物ケア記録で保存したJSONファイルを選んでください。');
+  }finally{
+    $('importFile').value='';
+  }
 };
 
 function autoRecordFromUrl(){
