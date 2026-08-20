@@ -27,6 +27,7 @@ h1{font-size:24px;margin:4px 0 4px}
 .app-header{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
 .app-header-main{min-width:0}
 .menu-wrap{position:relative;flex:none}
+.menu-wrap.open{z-index:30}
 .menu-button{font-size:22px;line-height:1;padding:8px 12px;min-width:44px}
 .menu-panel{
   position:absolute;right:0;top:calc(100% + 6px);z-index:20;width:210px;
@@ -38,6 +39,7 @@ h1{font-size:24px;margin:4px 0 4px}
   background:#fff;color:var(--text);text-align:left;font-size:14px
 }
 .menu-panel button:active{background:var(--bg)}
+.menu-panel button.menu-danger{color:var(--danger)}
 .toolbar{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
 .view-switch{display:grid;grid-template-columns:1fr 1fr;gap:4px;background:#e5e7eb;padding:4px;border-radius:14px;margin-bottom:14px}
 .view-switch button{background:transparent;color:var(--muted);padding:9px}
@@ -53,6 +55,8 @@ button.danger{background:#fff;color:var(--danger);border:1px solid #fecaca}
   box-shadow:0 1px 3px rgba(0,0,0,.06)
 }
 .row{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.card-top-actions{display:flex;align-items:center;gap:5px;align-self:flex-start}
+.plant-menu-button{padding:7px 10px;min-width:40px;background:transparent!important;border-color:transparent!important}
 .name{font-size:18px;font-weight:800}
 .meta{font-size:13px;color:var(--muted);margin-top:4px}
 .elapsed{font-size:27px;font-weight:900;margin:12px 0 4px}
@@ -94,8 +98,6 @@ button.danger{background:#fff;color:var(--danger);border:1px solid #fecaca}
 .entry-title{font-weight:800;font-size:14px}.entry-meta{font-size:12px;color:var(--muted);margin-top:3px}
 .hidden{display:none!important}
 @media(max-width:420px){.calendar-day{min-height:62px}.calendar-panel{padding:9px}.calendar-filters{grid-template-columns:1fr}}
-.mini{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}
-.mini button{flex:1;min-width:110px;padding:10px;font-size:13px}
 .empty{text-align:center;color:var(--muted);padding:24px 10px}
 .badge{background:var(--soft);color:#1d4ed8;padding:5px 8px;border-radius:999px;font-size:12px;font-weight:700}
 dialog{
@@ -392,16 +394,23 @@ function render(){
           <div class="name">${esc(p.name)}</div>
           <div class="meta">${esc(p.stage || '成株')}${p.type?` ・ ${esc(p.type)}`:''}</div>
         </div>
-        <span class="badge">${p.logs?.length||0}回</span>
+        <div class="card-top-actions">
+          <span class="badge">${p.logs?.length||0}回</span>
+          <div class="menu-wrap" data-plant-menu>
+            <button class="secondary menu-button plant-menu-button" id="plantMenuBtn-${p.id}"
+              aria-label="${esc(p.name)}のメニュー" aria-haspopup="true" aria-expanded="false"
+              onclick="togglePlantMenu('${p.id}',event)">⋯</button>
+            <div class="menu-panel" id="plantMenu-${p.id}" role="menu" hidden>
+              <button role="menuitem" onclick="closePlantMenus();showHistory('${p.id}')">履歴を見る</button>
+              <button role="menuitem" onclick="closePlantMenus();copyShortcutUrl('${p.id}')">水やりショートカットURL</button>
+              <button class="menu-danger" role="menuitem" onclick="closePlantMenus();removePlant('${p.id}')">この株を削除</button>
+            </div>
+          </div>
+        </div>
       </div>
       <div class="elapsed">${e.main} <span>${e.sub}</span></div>
       <div class="meta">前回：${fmtDate(last?.time)}</div>
       <button class="care" onclick="openCare('${p.id}')">＋ ケアを記録</button>
-      <div class="mini">
-        <button class="secondary" onclick="showHistory('${p.id}')">履歴</button>
-        <button class="secondary" onclick="copyShortcutUrl('${p.id}')">水やりショートカット</button>
-        <button class="danger" onclick="removePlant('${p.id}')">削除</button>
-      </div>
     </div>`;
   }).join('');
   renderCalendarFilters();
@@ -770,6 +779,7 @@ window.removeLog=(id,index)=>{
 $('menuBtn').onclick=e=>{
   e.stopPropagation();
   const willOpen=$('dataMenu').hidden;
+  closePlantMenus();
   $('dataMenu').hidden=!willOpen;
   $('menuBtn').setAttribute('aria-expanded',String(willOpen));
 };
@@ -779,11 +789,39 @@ function closeDataMenu(){
   $('menuBtn').setAttribute('aria-expanded','false');
 }
 
+function closePlantMenus(){
+  document.querySelectorAll('[data-plant-menu]').forEach(menu=>{
+    menu.classList.remove('open');
+    const panel=menu.querySelector('.menu-panel');
+    const button=menu.querySelector('.plant-menu-button');
+    if(panel) panel.hidden=true;
+    if(button) button.setAttribute('aria-expanded','false');
+  });
+}
+
+window.togglePlantMenu=(id,e)=>{
+  e.stopPropagation();
+  const panel=$(`plantMenu-${id}`);
+  const button=$(`plantMenuBtn-${id}`);
+  const willOpen=panel.hidden;
+  closeDataMenu();
+  closePlantMenus();
+  if(willOpen){
+    panel.hidden=false;
+    button.setAttribute('aria-expanded','true');
+    panel.parentElement.classList.add('open');
+  }
+};
+
 document.addEventListener('click',e=>{
   if(!$('menuWrap').contains(e.target)) closeDataMenu();
+  closePlantMenus();
 });
 document.addEventListener('keydown',e=>{
-  if(e.key==='Escape') closeDataMenu();
+  if(e.key==='Escape'){
+    closeDataMenu();
+    closePlantMenus();
+  }
 });
 
 $('exportBtn').onclick=()=>{
