@@ -187,6 +187,21 @@ textarea{min-height:76px;resize:vertical}
 .detail-management-title{font-size:12px;color:var(--muted);margin-bottom:7px}
 .detail-management-actions{display:grid;gap:7px}
 .detail-management-actions button{width:100%;padding:10px 12px;font-size:13px;text-align:left}
+.help-intro{padding:12px;border-radius:12px;background:var(--soft);font-size:13px;line-height:1.65;margin-bottom:12px}
+.help-steps{display:grid;gap:8px;margin:0 0 14px;padding:0;list-style:none;counter-reset:help-step}
+.help-steps li{position:relative;padding:10px 10px 10px 44px;border:1px solid var(--line);border-radius:12px;font-size:13px;line-height:1.5}
+.help-steps li::before{
+  counter-increment:help-step;content:counter(help-step);position:absolute;left:11px;top:10px;
+  display:grid;place-items:center;width:23px;height:23px;border-radius:50%;background:#111827;color:#fff;font-size:12px;font-weight:800
+}
+.help-section{border-top:1px solid var(--line)}
+.help-section summary{padding:13px 2px;font-weight:800;font-size:14px;cursor:pointer;list-style:none}
+.help-section summary::-webkit-details-marker{display:none}
+.help-section summary::after{content:'＋';float:right;color:var(--muted)}
+.help-section[open] summary::after{content:'−'}
+.help-section-body{padding:0 2px 13px;color:#374151;font-size:13px;line-height:1.65}
+.help-section-body p{margin:0 0 8px}.help-section-body p:last-child{margin-bottom:0}
+.help-callout{padding:10px;border-radius:10px;background:#fffbeb;color:#92400e;font-size:12px;line-height:1.6;margin-top:10px}
 .batch-header{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px}
 .batch-header h2{margin:0}
 .batch-select-all{padding:8px 10px;font-size:13px}
@@ -218,6 +233,8 @@ textarea{min-height:76px;resize:vertical}
     <div class="menu-wrap" id="menuWrap">
       <button class="secondary menu-button" id="menuBtn" aria-label="メニュー" aria-haspopup="true" aria-expanded="false">⋯</button>
       <div class="menu-panel" id="dataMenu" role="menu" hidden>
+        <button id="helpBtn" role="menuitem">使い方・ヘルプ</button>
+        <div class="menu-separator" role="separator"></div>
         <button id="batchWaterBtn" role="menuitem">まとめて水やり</button>
         <button id="batchShortcutBtn" role="menuitem">まとめて水やりURLをコピー</button>
         <div class="menu-separator" role="separator"></div>
@@ -282,6 +299,61 @@ textarea{min-height:76px;resize:vertical}
 </div>
 
 <div id="toast" class="toast"></div>
+
+<dialog id="helpDialog">
+  <div class="modal">
+    <h2>使い方・ヘルプ</h2>
+    <div class="help-intro">塊根植物ごとの情報と、水やり・薬剤散布・植え替えなどのケアを記録するアプリです。データは基本的に、この端末のブラウザ内へ保存されます。</div>
+    <ol class="help-steps" aria-label="基本的な使い方">
+      <li><strong>植物を登録</strong><br>「＋ 植物を追加」から管理名や生育区分を入力します。</li>
+      <li><strong>ケアを記録</strong><br>植物カードの「＋ ケアを記録」から、お世話の内容を保存します。</li>
+      <li><strong>詳細を確認</strong><br>植物カードをタップすると、登録情報・直近のケア・管理メニューを確認できます。</li>
+    </ol>
+
+    <details class="help-section">
+      <summary>植物の登録・編集</summary>
+      <div class="help-section-body">
+        <p>管理名と生育区分を設定します。種類、入手日、購入先、播種日、発芽日、管理場所、写真などは必要に応じて追加できます。</p>
+        <p>登録後は植物カードをタップし、詳細画面の「編集」から変更できます。</p>
+      </div>
+    </details>
+    <details class="help-section">
+      <summary>ケア記録と履歴</summary>
+      <div class="help-section-body">
+        <p>水やり、薬剤散布、植え替え、施肥、状態・写真記録に対応しています。</p>
+        <p>過去の記録は植物の詳細画面下部にある「履歴を見る」から確認・削除できます。</p>
+      </div>
+    </details>
+    <details class="help-section">
+      <summary>一覧・2列表示とカレンダー</summary>
+      <div class="help-section-body">
+        <p>一覧画面は「リスト」と「2列」を切り替えられます。選択した表示形式は端末内に記憶されます。</p>
+        <p>カレンダーではケア履歴や予定、取得済みの降水量を日付ごとに確認できます。</p>
+      </div>
+    </details>
+    <details class="help-section">
+      <summary>まとめて水やり・ショートカット</summary>
+      <div class="help-section-body">
+        <p>右上メニューの「まとめて水やり」では、複数の植物を選択して一度に記録できます。</p>
+        <p>個別植物やまとめて水やりのURLをコピーし、iPhoneのショートカットなどから開くこともできます。</p>
+      </div>
+    </details>
+    <details class="help-section">
+      <summary>天気・降水量</summary>
+      <div class="help-section-body">
+        <p>右上メニューの「天気・位置設定」で現在地を設定すると、降水量をカレンダーに表示できます。雨が当たる株を選び、降雨を水やりとして記録することもできます。</p>
+      </div>
+    </details>
+    <details class="help-section">
+      <summary>データ保存・バックアップ</summary>
+      <div class="help-section-body">
+        <p>右上メニューからバックアップファイルを保存し、別の端末や別の開き方へ復元できます。</p>
+        <div class="help-callout"><strong>大切な注意：</strong>Safariのタブと、ホーム画面から「Webアプリとして開く」場合では、保存データが別になることがあります。登録内容が見えないときは、元の画面でバックアップを保存してから、使いたい画面で復元してください。</div>
+      </div>
+    </details>
+    <div class="actions"><button id="closeHelp">閉じる</button></div>
+  </div>
+</dialog>
 
 <dialog id="plantDialog">
   <div class="modal">
@@ -1351,6 +1423,12 @@ $('menuBtn').onclick=e=>{
   $('dataMenu').hidden=!willOpen;
   $('menuBtn').setAttribute('aria-expanded',String(willOpen));
 };
+
+$('helpBtn').onclick=()=>{
+  closeDataMenu();
+  $('helpDialog').showModal();
+};
+$('closeHelp').onclick=()=> $('helpDialog').close();
 
 function closeDataMenu(){
   $('dataMenu').hidden=true;
