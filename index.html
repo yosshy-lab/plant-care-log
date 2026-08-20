@@ -40,6 +40,7 @@ h1{font-size:24px;margin:4px 0 4px}
 }
 .menu-panel button:active{background:var(--bg)}
 .menu-panel button.menu-danger{color:var(--danger)}
+.menu-separator{height:1px;background:var(--line);margin:5px 4px}
 .toolbar{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
 .view-switch{display:grid;grid-template-columns:1fr 1fr;gap:4px;background:#e5e7eb;padding:4px;border-radius:14px;margin-bottom:14px}
 .view-switch button{background:transparent;color:var(--muted);padding:9px}
@@ -50,6 +51,7 @@ button{
 }
 button.secondary{background:#fff;color:#111827;border:1px solid var(--line)}
 button.danger{background:#fff;color:var(--danger);border:1px solid #fecaca}
+button:disabled{opacity:.45;cursor:not-allowed}
 .card{
   background:var(--card);border-radius:16px;padding:15px;margin-bottom:12px;
   box-shadow:0 1px 3px rgba(0,0,0,.06)
@@ -119,6 +121,18 @@ textarea{min-height:76px;resize:vertical}
 .history-item:last-child{border-bottom:0}
 .history-title{font-weight:700}
 .history-note{font-size:13px;color:var(--muted);margin-top:3px}
+.batch-header{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px}
+.batch-header h2{margin:0}
+.batch-select-all{padding:8px 10px;font-size:13px}
+.batch-plant-list{border:1px solid var(--line);border-radius:12px;max-height:48vh;overflow:auto}
+.batch-plant-row{
+  display:flex;align-items:center;gap:11px;margin:0;padding:12px;
+  border-bottom:1px solid var(--line);color:var(--text);cursor:pointer
+}
+.batch-plant-row:last-child{border-bottom:0}
+.batch-plant-row input{width:22px;height:22px;margin:0;flex:none;accent-color:var(--accent)}
+.batch-plant-name{display:block;font-weight:750;font-size:15px}
+.batch-plant-meta{display:block;font-size:12px;color:var(--muted);margin-top:2px}
 .toast{
   position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom));
   transform:translateX(-50%);background:#111827;color:#fff;padding:11px 14px;
@@ -138,6 +152,8 @@ textarea{min-height:76px;resize:vertical}
     <div class="menu-wrap" id="menuWrap">
       <button class="secondary menu-button" id="menuBtn" aria-label="メニュー" aria-haspopup="true" aria-expanded="false">⋯</button>
       <div class="menu-panel" id="dataMenu" role="menu" hidden>
+        <button id="batchWaterBtn" role="menuitem">まとめて水やり</button>
+        <div class="menu-separator" role="separator"></div>
         <button id="exportBtn" role="menuitem">バックアップを保存</button>
         <button id="importBtn" role="menuitem">バックアップから復元</button>
       </div>
@@ -301,6 +317,21 @@ textarea{min-height:76px;resize:vertical}
     <h2 id="historyTitle">履歴</h2>
     <div id="historyList"></div>
     <div class="actions"><button id="closeHistory">閉じる</button></div>
+  </div>
+</dialog>
+
+<dialog id="batchWaterDialog">
+  <div class="modal">
+    <div class="batch-header">
+      <h2>まとめて水やり</h2>
+      <button class="secondary batch-select-all" id="batchSelectAll">すべて選択</button>
+    </div>
+    <div class="hint" style="margin:0 0 12px">水やりした株を選択してください。</div>
+    <div id="batchPlantList" class="batch-plant-list"></div>
+    <div class="actions">
+      <button class="secondary" id="cancelBatchWater">キャンセル</button>
+      <button id="saveBatchWater" disabled>株を選択してください</button>
+    </div>
   </div>
 </dialog>
 
@@ -493,7 +524,7 @@ function compressImage(file){
 
 window.openCare=id=>{
   currentId=id;
-  const p=data.plants.find(x=>x.id===id);
+  const p=data.plants.find(x=>String(x.id)===id);
   $('careTitle').textContent=`${p.name} のケア記録`;
   $('careType').value='水やり';
   resetCareForm();
@@ -749,6 +780,86 @@ window.showHistory=id=>{
 };
 $('closeHistory').onclick=()=> $('historyDialog').close();
 
+function updateBatchWaterControls(){
+  const checks=[...document.querySelectorAll('.batch-plant-check')];
+  const selected=checks.filter(input=>input.checked).length;
+  $('saveBatchWater').disabled=selected===0;
+  $('saveBatchWater').textContent=selected?`選択した${selected}株に記録`:'株を選択してください';
+  $('batchSelectAll').textContent=checks.length && selected===checks.length?'選択を解除':'すべて選択';
+}
+
+function openBatchWatering(){
+  closeDataMenu();
+  closePlantMenus();
+  if(!data.plants.length){
+    alert('まとめて記録できる植物がありません。先に植物を追加してください。');
+    return;
+  }
+  $('batchPlantList').innerHTML=data.plants.map(p=>`
+    <label class="batch-plant-row">
+      <input class="batch-plant-check" type="checkbox" value="${esc(String(p.id))}">
+      <span>
+        <span class="batch-plant-name">${esc(p.name)}</span>
+        <span class="batch-plant-meta">${esc(p.stage || '成株')}${p.type?` ・ ${esc(p.type)}`:''}</span>
+      </span>
+    </label>`).join('');
+  updateBatchWaterControls();
+  $('batchWaterDialog').showModal();
+}
+
+$('batchPlantList').onchange=updateBatchWaterControls;
+$('batchSelectAll').onclick=()=>{
+  const checks=[...document.querySelectorAll('.batch-plant-check')];
+  const shouldSelect=!checks.every(input=>input.checked);
+  checks.forEach(input=>{ input.checked=shouldSelect; });
+  updateBatchWaterControls();
+};
+$('cancelBatchWater').onclick=()=> $('batchWaterDialog').close();
+$('saveBatchWater').onclick=()=>{
+  const selectedIds=new Set(
+    [...document.querySelectorAll('.batch-plant-check:checked')].map(input=>input.value)
+  );
+  if(!selectedIds.size) return;
+
+  const now=Date.now();
+  const additions=[];
+  let skipped=0;
+  data.plants.forEach(p=>{
+    if(!selectedIds.has(String(p.id))) return;
+    if(!Array.isArray(p.logs)) p.logs=[];
+    const last=p.logs[0];
+    if(last && now-last.time<=10000){
+      skipped++;
+      return;
+    }
+    const log={
+      time:now,
+      care:'水やり',
+      type:'通常',
+      fertilizer:'なし',
+      note:'まとめて水やりから記録'
+    };
+    p.logs.unshift(log);
+    additions.push({plant:p,log});
+  });
+
+  if(!additions.length){
+    $('batchWaterDialog').close();
+    toast('10秒以内に記録済みのため、重複を防止しました');
+    return;
+  }
+
+  if(save()){
+    $('batchWaterDialog').close();
+    const suffix=skipped?`（${skipped}株は重複防止）`:'';
+    toast(`💧 ${additions.length}株の水やりを記録しました${suffix}`);
+  }else{
+    additions.forEach(({plant,log})=>{
+      plant.logs=plant.logs.filter(item=>item!==log);
+    });
+  }
+};
+
 window.copyShortcutUrl=async id=>{
   const p=data.plants.find(x=>x.id===id);
   const base=location.origin + location.pathname;
@@ -875,12 +986,20 @@ $('importFile').onchange=async()=>{
   }
 };
 
+$('batchWaterBtn').onclick=openBatchWatering;
+
 function autoRecordFromUrl(){
   const params=new URLSearchParams(location.search);
   const id=params.get('water');
   if(!id) return;
 
-  const p=data.plants.find(x=>x.id===id);
+  if(id==='batch'){
+    history.replaceState({},'',location.pathname);
+    setTimeout(openBatchWatering,100);
+    return;
+  }
+
+  const p=data.plants.find(x=>String(x.id)===id);
   if(!p){
     history.replaceState({},'',location.pathname);
     setTimeout(()=>toast('対象の株が見つかりませんでした'),100);
