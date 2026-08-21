@@ -180,12 +180,14 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .calendar-title{font-size:18px;font-weight:800;text-align:center;flex:1}
 .calendar-filters{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
 .calendar-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
-.weekday{text-align:center;color:var(--muted);font-size:12px;font-weight:700;padding:5px 0}
-.weekday:first-child{color:#dc2626}.weekday:nth-child(7){color:#2563eb}
+.weekday{text-align:center;color:var(--muted);font-size:12px;font-weight:700;padding:5px 0;border-radius:8px}
+.weekday:first-child{color:#dc2626;background:#fff1f2}.weekday:nth-child(7){color:#2563eb;background:#eff6ff}
 .calendar-day{
   min-height:70px;padding:5px 3px;border:1px solid var(--line);border-radius:9px;
   background:#fff;color:var(--text);font-weight:600;text-align:left;overflow:hidden
 }
+.calendar-day.sunday{background:#fff7f7}
+.calendar-day.saturday{background:#f5f9ff}
 .calendar-day.other{opacity:.32}.calendar-day.today{border:2px solid var(--accent)}
 .calendar-day.selected{background:var(--soft)}
 .day-number{display:block;font-size:12px;margin-bottom:4px}
@@ -294,6 +296,12 @@ textarea{min-height:76px;resize:vertical}
   border-bottom:1px solid var(--line);color:var(--text);cursor:pointer
 }
 .batch-plant-row:last-child{border-bottom:0}
+.reorder-list{display:grid;gap:7px;max-height:52vh;overflow:auto}
+.reorder-row{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:10px;padding:10px;border:1px solid var(--line);border-radius:12px;background:#fff}
+.reorder-name{font-weight:800;font-size:14px;overflow-wrap:anywhere}
+.reorder-meta{font-size:11px;color:var(--muted);margin-top:2px}
+.reorder-actions{display:flex;gap:5px}
+.reorder-actions button{min-width:42px;padding:9px 10px;font-size:16px}
 .batch-plant-row input{width:22px;height:22px;margin:0;flex:none;accent-color:var(--accent)}
 .batch-plant-name{display:block;font-weight:750;font-size:15px}
 .batch-plant-meta{display:block;font-size:12px;color:var(--muted);margin-top:2px}
@@ -320,6 +328,7 @@ textarea{min-height:76px;resize:vertical}
         <div class="menu-separator" role="separator"></div>
         <button id="batchWaterBtn" role="menuitem">まとめて水やり</button>
         <button id="batchShortcutBtn" role="menuitem">まとめて水やりURLをコピー</button>
+        <button id="reorderPlantsBtn" role="menuitem">株を並べ替える</button>
         <div class="menu-separator" role="separator"></div>
         <button id="weatherSettingsBtn" role="menuitem">天気・位置設定</button>
         <div class="menu-separator" role="separator"></div>
@@ -417,6 +426,7 @@ textarea{min-height:76px;resize:vertical}
       <summary>一覧・2列表示とカレンダー</summary>
       <div class="help-section-body">
         <p>一覧画面は「リスト」と「2列」を切り替えられます。選択した表示形式は端末内に記憶されます。</p>
+        <p>右上メニューの「株を並べ替える」から、一覧やまとめて水やりに表示する順序を変更できます。</p>
         <p>カレンダーではケア履歴や予定、取得済みの降水量を日付ごとに確認できます。</p>
       </div>
     </details>
@@ -687,6 +697,18 @@ textarea{min-height:76px;resize:vertical}
   </div>
 </dialog>
 
+<dialog id="reorderPlantsDialog">
+  <div class="modal">
+    <h2>株を並べ替える</h2>
+    <p class="hint">矢印を押して表示順を変更してください。一覧・2列表示・まとめて水やりに反映されます。</p>
+    <div id="reorderPlantsList" class="reorder-list"></div>
+    <div class="actions">
+      <button class="secondary" id="cancelReorderPlants">キャンセル</button>
+      <button id="saveReorderPlants">並び順を保存</button>
+    </div>
+  </div>
+</dialog>
+
 <dialog id="weatherDialog">
   <div class="modal">
     <h2>天気・位置設定</h2>
@@ -710,7 +732,7 @@ textarea{min-height:76px;resize:vertical}
 </dialog>
 
 <script>
-const APP_VERSION='1.1.1';
+const APP_VERSION='1.2.0';
 const KEY='plant-care-log-v1';
 const WEATHER_KEY='plant-care-weather-v1';
 const LIST_LAYOUT_KEY='plant-care-list-layout-v1';
@@ -1360,6 +1382,8 @@ function renderCalendar(){
     }).join('');
     const more=events.length>eventLimit?`<span class="more-mark">+${events.length-eventLimit}</span>`:'';
     const classes=['calendar-day'];
+    if(day.getDay()===0) classes.push('sunday');
+    if(day.getDay()===6) classes.push('saturday');
     if(day.getMonth()!==month) classes.push('other');
     if(key===today) classes.push('today');
     if(key===selectedCalendarDate) classes.push('selected');
@@ -1452,6 +1476,63 @@ window.showHistory=id=>{
   $('historyDialog').showModal();
 };
 $('closeHistory').onclick=()=> $('historyDialog').close();
+
+let reorderDraft=[];
+
+function renderReorderPlants(){
+  $('reorderPlantsList').innerHTML=reorderDraft.map((id,index)=>{
+    const plant=data.plants.find(item=>String(item.id)===String(id));
+    if(!plant) return '';
+    return `<div class="reorder-row">
+      <div>
+        <div class="reorder-name">${esc(plant.name)}</div>
+        <div class="reorder-meta">${esc(plant.stage || '成株')}${plant.type?` ・ ${esc(plant.type)}`:''}</div>
+      </div>
+      <div class="reorder-actions">
+        <button class="secondary" type="button" aria-label="${esc(plant.name)}を上へ" onclick="moveReorderPlant(${index},-1)" ${index===0?'disabled':''}>↑</button>
+        <button class="secondary" type="button" aria-label="${esc(plant.name)}を下へ" onclick="moveReorderPlant(${index},1)" ${index===reorderDraft.length-1?'disabled':''}>↓</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function openPlantReorder(){
+  closeDataMenu();
+  if(data.plants.length<2){
+    toast(data.plants.length?'並べ替えるには2株以上登録してください':'植物がまだ登録されていません');
+    return;
+  }
+  reorderDraft=data.plants.map(plant=>String(plant.id));
+  renderReorderPlants();
+  $('reorderPlantsDialog').showModal();
+}
+
+window.moveReorderPlant=(index,direction)=>{
+  const target=index+direction;
+  if(target<0 || target>=reorderDraft.length) return;
+  [reorderDraft[index],reorderDraft[target]]=[reorderDraft[target],reorderDraft[index]];
+  renderReorderPlants();
+};
+
+$('reorderPlantsBtn').onclick=openPlantReorder;
+$('cancelReorderPlants').onclick=()=> $('reorderPlantsDialog').close();
+$('saveReorderPlants').onclick=()=>{
+  const previous=data.plants;
+  const plantsById=new Map(previous.map(plant=>[String(plant.id),plant]));
+  const reordered=reorderDraft.map(id=>plantsById.get(id)).filter(Boolean);
+  previous.forEach(plant=>{
+    if(!reorderDraft.includes(String(plant.id))) reordered.push(plant);
+  });
+  data.plants=reordered;
+  if(save()){
+    $('reorderPlantsDialog').close();
+    toast('株の並び順を保存しました');
+    trackPlantCareEvent('plants_reordered',{plant_count:reordered.length});
+  }else{
+    data.plants=previous;
+    render();
+  }
+};
 
 function updateBatchWaterControls(){
   const checks=[...document.querySelectorAll('.batch-plant-check')];
