@@ -1270,7 +1270,7 @@ function compressImage(file){
 
 window.openCare=id=>{
   currentId=id;
-  const p=data.plants.find(x=>String(x.id)===id);
+  const p=data.plants.find(x=>String(x.id)===String(id));
   if(!p) return;
   if(plantManagementStatus(p)==='ended') return toast('管理終了した株には記録できません');
   $('careTitle').textContent=`${p.name} のケア記録`;
@@ -1634,7 +1634,7 @@ function openBatchWatering(context=null){
   closeDataMenu();
   const availablePlants=data.plants.filter(plant=>plantManagementStatus(plant)!=='ended');
   if(!availablePlants.length){
-    alert('まとめて記録できる管理中の植物がありません。');
+    alert('まとめて記録できる植物がありません。管理終了の状態をご確認ください。');
     return;
   }
   batchWaterContext=context && context.rainDate?context:null;
