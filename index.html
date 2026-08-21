@@ -269,6 +269,13 @@ textarea{min-height:76px;resize:vertical}
 .help-section[open] summary::after{content:'−'}
 .help-section-body{padding:0 2px 13px;color:#374151;font-size:13px;line-height:1.65}
 .help-section-body p{margin:0 0 8px}.help-section-body p:last-child{margin-bottom:0}
+.help-subsection{margin-top:10px;border:1px solid var(--line);border-radius:10px;background:#fff}
+.help-subsection summary{padding:11px;font-weight:750;cursor:pointer;list-style:none}
+.help-subsection summary::-webkit-details-marker{display:none}
+.help-subsection summary::after{content:'＋';float:right;color:var(--muted)}
+.help-subsection[open] summary::after{content:'−'}
+.help-subsection-body{padding:0 11px 11px;border-top:1px solid var(--line)}
+.help-subsection-body button{width:100%;margin-top:4px}
 .help-callout{padding:10px;border-radius:10px;background:#fffbeb;color:#92400e;font-size:12px;line-height:1.6;margin-top:10px}
 .batch-header{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px}
 .batch-header h2{margin:0}
@@ -307,7 +314,6 @@ textarea{min-height:76px;resize:vertical}
         <button id="batchShortcutBtn" role="menuitem">まとめて水やりURLをコピー</button>
         <div class="menu-separator" role="separator"></div>
         <button id="weatherSettingsBtn" role="menuitem">天気・位置設定</button>
-        <button id="analyticsSettingsBtn" role="menuitem">アクセス解析設定</button>
         <div class="menu-separator" role="separator"></div>
         <button id="exportBtn" role="menuitem">バックアップを保存</button>
         <button id="importBtn" role="menuitem">バックアップから復元</button>
@@ -420,11 +426,17 @@ textarea{min-height:76px;resize:vertical}
       </div>
     </details>
     <details class="help-section">
-      <summary>プライバシー・アクセス解析</summary>
+      <summary>このアプリについて</summary>
       <div class="help-section-body">
-        <p>サービス改善のため、Google Analyticsで閲覧数や機能の利用状況を匿名で収集します。植物名、写真、メモ、正確な位置情報、バックアップ内容は送信しません。</p>
-        <p>右上メニューの「アクセス解析設定」から、いつでも収集を停止できます。</p>
-        <p><a href="https://policies.google.com/technologies/partner-sites" target="_blank" rel="noopener">Googleによるデータ利用について</a></p>
+        <p>塊根植物記録は、ブラウザ内で植物情報とケア履歴を管理するアプリです。</p>
+        <details class="help-subsection">
+          <summary>プライバシー・アクセス解析</summary>
+          <div class="help-subsection-body">
+            <p>サービス改善のため、Google Analyticsで閲覧数や機能の利用状況を匿名で収集します。植物名、写真、メモ、正確な位置情報、バックアップ内容は送信しません。</p>
+            <p><a href="https://policies.google.com/technologies/partner-sites" target="_blank" rel="noopener">Googleによるデータ利用について</a></p>
+            <button class="secondary" id="helpAnalyticsSettingsBtn">アクセス解析を設定</button>
+          </div>
+        </details>
       </div>
     </details>
     <details class="help-section">
@@ -690,7 +702,7 @@ textarea{min-height:76px;resize:vertical}
 </dialog>
 
 <script>
-const APP_VERSION='1.2.0';
+const APP_VERSION='1.1.0';
 const KEY='plant-care-log-v1';
 const WEATHER_KEY='plant-care-weather-v1';
 const LIST_LAYOUT_KEY='plant-care-list-layout-v1';
@@ -1575,11 +1587,13 @@ $('helpBtn').onclick=()=>{
 };
 $('closeHelp').onclick=()=> $('helpDialog').close();
 
-$('analyticsSettingsBtn').onclick=()=>{
+function openAnalyticsSettings(){
   closeDataMenu();
+  if($('helpDialog').open) $('helpDialog').close();
   $('analyticsEnabled').checked=window.plantCareAnalyticsEnabled;
   $('analyticsDialog').showModal();
-};
+}
+$('helpAnalyticsSettingsBtn').onclick=openAnalyticsSettings;
 $('cancelAnalytics').onclick=()=> $('analyticsDialog').close();
 $('saveAnalytics').onclick=()=>{
   const enabled=$('analyticsEnabled').checked;
