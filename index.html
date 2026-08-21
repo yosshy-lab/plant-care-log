@@ -12,7 +12,12 @@
 <title>塊根植物記録</title>
 <script>
 (function(){
-  const measurementId='G-1V4R4PFM9Y';
+  const measurementIds=Object.freeze({
+    'yosshy-lab.github.io':'G-1V4R4PFM9Y',
+    'hibikorekaikon.github.io':'G-4Y25TEVD60'
+  });
+  const measurementId=measurementIds[location.hostname] || '';
+  const analyticsAvailable=Boolean(measurementId);
   const settingKey='plant-care-analytics-enabled-v1';
 
   function readEnabled(){
@@ -20,7 +25,7 @@
     catch(e){ return true; }
   }
 
-  window.plantCareAnalyticsEnabled=readEnabled();
+  window.plantCareAnalyticsEnabled=analyticsAvailable && readEnabled();
   window.dataLayer=window.dataLayer || [];
   window.gtag=function(){ window.dataLayer.push(arguments); };
 
@@ -53,7 +58,7 @@
       ad_user_data:'denied',
       ad_personalization:'denied'
     });
-    if(enabled) loadAnalytics();
+    if(enabled && analyticsAvailable) loadAnalytics();
   };
 
   window.trackPlantCareEvent=function(name,params){
@@ -684,7 +689,7 @@ textarea{min-height:76px;resize:vertical}
 </dialog>
 
 <script>
-const APP_VERSION='1.1.0';
+const APP_VERSION='1.2.0';
 const KEY='plant-care-log-v1';
 const WEATHER_KEY='plant-care-weather-v1';
 const LIST_LAYOUT_KEY='plant-care-list-layout-v1';
