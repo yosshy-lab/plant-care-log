@@ -634,13 +634,6 @@ function photoHtml(photo){
   return `<img class="history-photo" src="${photo}" alt="成長記録の写真">`;
 }
 
-const CARE_CLASSES={
-  '水やり':'water','薬剤散布':'pesticide','植え替え':'repot',
-  '施肥':'fertilize','状態・写真記録':'growth'
-};
-let calendarMonth=new Date(new Date().getFullYear(),new Date().getMonth(),1);
-let selectedCalendarDate=dateKey(new Date());
-
 window.showHistory=id=>{
   const p=data.plants.find(x=>x.id===id);
   $('historyTitle').textContent=`${p.name} の履歴`;

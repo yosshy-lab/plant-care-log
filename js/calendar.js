@@ -5,6 +5,13 @@ function dateKey(date){
   return `${y}-${m}-${d}`;
 }
 
+const CARE_CLASSES={
+  '水やり':'water','薬剤散布':'pesticide','植え替え':'repot',
+  '施肥':'fertilize','状態・写真記録':'growth'
+};
+let calendarMonth=new Date(new Date().getFullYear(),new Date().getMonth(),1);
+let selectedCalendarDate=dateKey(new Date());
+
 function rainfallForDate(date){
   const amount=Number(weather.days?.[date]);
   return Number.isFinite(amount) && amount>=Number(weather.displayThreshold) ? amount : null;
