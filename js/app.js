@@ -1,4 +1,4 @@
-const APP_VERSION='1.4.0';
+const APP_VERSION='1.5.0';
 const KEY='plant-care-log-v1';
 const WEATHER_KEY='plant-care-weather-v1';
 const LIST_LAYOUT_KEY='plant-care-list-layout-v1';
@@ -146,6 +146,33 @@ function fmtDate(ts){
     year:'numeric',month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'
   }).format(d);
 }
+function toDateTimeLocal(ts=Date.now()){
+  const d=new Date(ts);
+  const pad=value=>String(value).padStart(2,'0');
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function recordedAtValue(id){
+  const value=$(id).value;
+  const timestamp=value?new Date(value).getTime():NaN;
+  if(!Number.isFinite(timestamp)){
+    alert('記録日時を入力してください');
+    return null;
+  }
+  if(timestamp>Date.now()){
+    alert('未来の日時はケア履歴として登録できません。予定として管理してください。');
+    return null;
+  }
+  return timestamp;
+}
+
+function careTimeForDate(date){
+  const now=new Date();
+  const candidate=new Date(`${date}T${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:00`);
+  if(candidate.getTime()<=now.getTime()) return candidate.getTime();
+  return new Date(`${date}T12:00:00`).getTime();
+}
+
 function elapsed(ts){
   if(!ts) return {main:'未記録',sub:'最初のケアを記録してください'};
   const diff=Date.now()-ts;
@@ -525,6 +552,9 @@ function toggleCareFields(){
   if(selected) $(selected).hidden=false;
 }
 
+let editingLogIndex=null;
+let editingCarePhoto='';
+
 function resetCareForm(){
   ['waterAmount','pesticideName','pesticideTarget','pesticideDilution','pesticideNextDate',
    'potType','potSize','soilMix','repotReason','fertilizerName','fertilizerAmount',
@@ -535,6 +565,9 @@ function resetCareForm(){
   $('fertilizerForm').value='液肥';
   $('rootPruned').checked=false;
   $('carePhoto').value='';
+  $('careRecordedAt').value=toDateTimeLocal();
+  $('careRecordedAt').max=toDateTimeLocal();
+  editingCarePhoto='';
   $('photoPreview').src='';
   $('photoPreview').style.display='none';
 }
@@ -564,14 +597,51 @@ function compressImage(file){
   });
 }
 
-window.openCare=id=>{
+window.openCare=(id,options={})=>{
   currentId=id;
   const p=data.plants.find(x=>String(x.id)===String(id));
   if(!p) return;
   if(plantManagementStatus(p)==='ended') return toast('管理終了した株には記録できません');
-  $('careTitle').textContent=`${p.name} のケア記録`;
-  $('careType').value='水やり';
+  editingLogIndex=Number.isInteger(options.logIndex)?options.logIndex:null;
   resetCareForm();
+  const existing=editingLogIndex===null?null:p.logs?.[editingLogIndex];
+  if(existing){
+    const details=existing.details || {};
+    $('careTitle').textContent=`${p.name} のケア記録を編集`;
+    $('saveCare').textContent='変更を保存';
+    $('careType').value=existing.care || '水やり';
+    $('careRecordedAt').value=toDateTimeLocal(existing.time);
+    $('waterType').value=existing.type || 'たっぷり灌水';
+    $('fertilizer').value=existing.fertilizer || 'なし';
+    $('waterAmount').value=details.waterAmount || '';
+    $('pesticideName').value=details.name || '';
+    $('pesticideTarget').value=details.target || '';
+    $('pesticideDilution').value=details.dilution || '';
+    $('pesticideMethod').value=details.method || '散布';
+    $('pesticideNextDate').value=details.nextDate || '';
+    $('potType').value=details.potType || '';
+    $('potSize').value=details.potSize || '';
+    $('soilMix').value=details.soilMix || '';
+    $('rootPruned').checked=Boolean(details.rootPruned);
+    $('repotReason').value=details.reason || '';
+    $('fertilizerName').value=details.name || '';
+    $('fertilizerForm').value=details.form || '液肥';
+    $('fertilizerAmount').value=details.amount || '';
+    $('plantHeight').value=details.height || '';
+    $('trunkWidth').value=details.trunkWidth || '';
+    $('leafCount').value=details.leafCount || '';
+    $('waterNote').value=existing.note || '';
+    editingCarePhoto=existing.photo || '';
+    if(editingCarePhoto){
+      $('photoPreview').src=editingCarePhoto;
+      $('photoPreview').style.display='block';
+    }
+  }else{
+    $('careTitle').textContent=`${p.name} のケア記録`;
+    $('saveCare').textContent='記録する';
+    $('careType').value='水やり';
+    if(options.date) $('careRecordedAt').value=toDateTimeLocal(careTimeForDate(options.date));
+  }
   toggleCareFields();
   $('careDialog').showModal();
 };
@@ -579,7 +649,7 @@ $('careType').onchange=toggleCareFields;
 $('carePhoto').onchange=()=>{
   const file=$('carePhoto').files[0];
   if(!file){
-    $('photoPreview').style.display='none';
+    if(!editingCarePhoto) $('photoPreview').style.display='none';
     return;
   }
   const url=URL.createObjectURL(file);
@@ -589,8 +659,10 @@ $('carePhoto').onchange=()=>{
 };
 $('cancelCare').onclick=()=> $('careDialog').close();
 $('saveCare').onclick=async()=>{
-  const p=data.plants.find(x=>x.id===currentId);
+  const p=data.plants.find(x=>String(x.id)===String(currentId));
   const care=$('careType').value;
+  const recordedAt=recordedAtValue('careRecordedAt');
+  if(recordedAt===null) return;
   if(care==='薬剤散布' && !$('pesticideName').value.trim()) return alert('薬剤名を入力してください');
   if(care==='施肥' && !$('fertilizerName').value.trim()) return alert('肥料名を入力してください');
 
@@ -615,21 +687,22 @@ $('saveCare').onclick=async()=>{
     leafCount:$('leafCount').value.trim()
   });
 
-  let photo='';
+  let photo=care==='状態・写真記録'?editingCarePhoto:'';
   const photoFile=$('carePhoto').files[0];
   if(care==='状態・写真記録' && photoFile){
+    const normalLabel=editingLogIndex===null?'記録する':'変更を保存';
     $('saveCare').disabled=true;
     $('saveCare').textContent='写真を処理中…';
     try{ photo=await compressImage(photoFile); }
     catch(e){ alert(e.message); return; }
     finally{
       $('saveCare').disabled=false;
-      $('saveCare').textContent='記録する';
+      $('saveCare').textContent=normalLabel;
     }
   }
 
   const log={
-    time:Date.now(),
+    time:recordedAt,
     care,
     type:care==='水やり' ? $('waterType').value : care,
     fertilizer:care==='水やり' ? $('fertilizer').value : 'なし',
@@ -637,11 +710,16 @@ $('saveCare').onclick=async()=>{
     note:$('waterNote').value.trim(),
     photo
   };
-  p.logs.unshift(log);
+  const wasEditing=editingLogIndex!==null;
+  const previousLogs=[...(p.logs || [])];
+  if(wasEditing) p.logs[editingLogIndex]=log;
+  else p.logs.push(log);
+  p.logs.sort((a,b)=>b.time-a.time);
   if(save()){
     $('careDialog').close();
-    trackPlantCareEvent('care_recorded',{care_type:care});
-  }else p.logs.shift();
+    trackPlantCareEvent(wasEditing?'care_history_edited':'care_recorded',{care_type:care});
+    if(wasEditing) showHistory(p.id);
+  }else p.logs=previousLogs;
 };
 
 function careDetailHtml(l){
@@ -797,8 +875,35 @@ function renderCalendarDayDetails(){
     return `<div class="calendar-entry"><div class="entry-title">${esc(event.plant.name)}・${esc(event.care)}</div>
       <div class="entry-meta">${careDetailHtml(event.log)}</div>${photoHtml(event.log.photo)}</div>`;
   }).join(''):(rain===null?'<div class="empty">この日の記録・予定はありません。</div>':'');
-  $('calendarDayDetails').innerHTML=`<h3>${title}</h3>${rainHtml}${careHtml}`;
+  const canAdd=selectedCalendarDate<=dateKey(new Date());
+  const addCareHtml=canAdd && data.plants.some(plant=>plantManagementStatus(plant)!=='ended')
+    ?`<button id="addCareForDateBtn" class="calendar-add-care" type="button" onclick="openCalendarCare('${selectedCalendarDate}')">＋ この日のケアを追加</button>`
+    :'';
+  $('calendarDayDetails').innerHTML=`<h3>${title}</h3>${addCareHtml}${rainHtml}${careHtml}`;
 }
+
+let calendarCareDate='';
+
+window.openCalendarCare=date=>{
+  const plants=data.plants.filter(plant=>plantManagementStatus(plant)!=='ended');
+  if(!plants.length) return toast('ケアを記録できる株がありません');
+  const filteredId=$('calendarPlantFilter').value;
+  const filteredPlant=plants.find(plant=>String(plant.id)===String(filteredId));
+  if(filteredPlant || plants.length===1){
+    openCare((filteredPlant || plants[0]).id,{date});
+    return;
+  }
+  calendarCareDate=date;
+  $('calendarCareDateText').textContent=`${date} に記録する株を選択してください。`;
+  $('calendarCarePlant').innerHTML=plants.map(plant=>`<option value="${esc(String(plant.id))}">${esc(plant.name)}</option>`).join('');
+  $('calendarCarePlantDialog').showModal();
+};
+$('cancelCalendarCarePlant').onclick=()=> $('calendarCarePlantDialog').close();
+$('continueCalendarCarePlant').onclick=()=>{
+  const id=$('calendarCarePlant').value;
+  $('calendarCarePlantDialog').close();
+  openCare(id,{date:calendarCareDate});
+};
 
 window.selectCalendarDate=date=>{
   selectedCalendarDate=date;
@@ -852,8 +957,10 @@ window.showHistory=id=>{
       <div class="history-title">${fmtDate(l.time)} ・ ${esc(l.care || '水やり')}</div>
       <div class="history-note">${careDetailHtml(l)}</div>
       ${photoHtml(l.photo)}
-      <button class="danger" style="margin-top:7px;padding:7px 10px;font-size:12px"
-        onclick="removeLog('${id}',${i})">この記録を削除</button>
+      <div class="history-actions">
+        <button class="secondary" type="button" onclick="editLog('${id}',${i})">編集</button>
+        <button class="danger" type="button" onclick="removeLog('${id}',${i})">削除</button>
+      </div>
     </div>`).join(''):'<div class="empty">履歴はまだありません。</div>');
   $('historyDialog').showModal();
 };
@@ -937,7 +1044,14 @@ function openBatchWatering(context=null){
   $('batchWaterTitle').textContent=batchWaterContext?'降雨を水やりとして記録':'まとめて水やり';
   $('batchWaterHint').textContent=batchWaterContext
     ?`${batchWaterContext.rainDate} の降雨 ${Number(batchWaterContext.rainAmount).toFixed(1)}mm。雨が当たる設定の株を選択しています。`
-    :'水やりした株を選択してください。';
+    :'水やりした株を選択してください。記録を忘れた場合は日時を過去へ変更できます。';
+  const batchTime=batchWaterContext?new Date(`${batchWaterContext.rainDate}T12:00:00`).getTime():Date.now();
+  $('batchWaterTime').value=toDateTimeLocal(batchTime);
+  $('batchWaterTime').max=toDateTimeLocal();
+  $('batchWaterTime').disabled=Boolean(batchWaterContext);
+  $('batchWaterTimeHint').textContent=batchWaterContext
+    ?'降雨記録は選択日の正午として保存します。'
+    :'実際に水やりした日時を指定できます。';
   $('batchPlantList').innerHTML=availablePlants.map(p=>`
     <label class="batch-plant-row">
       <input class="batch-plant-check" type="checkbox" value="${esc(String(p.id))}" ${batchWaterContext && (p.rainExposure || 'rain')==='rain'?'checked':''}>
@@ -970,7 +1084,8 @@ $('saveBatchWater').onclick=()=>{
   if(!selectedIds.size) return;
 
   const context=batchWaterContext;
-  const now=context?new Date(`${context.rainDate}T12:00:00`).getTime():Date.now();
+  const now=context?new Date(`${context.rainDate}T12:00:00`).getTime():recordedAtValue('batchWaterTime');
+  if(now===null) return;
   const additions=[];
   let skipped=0;
   data.plants.forEach(p=>{
@@ -978,7 +1093,7 @@ $('saveBatchWater').onclick=()=>{
     if(!Array.isArray(p.logs)) p.logs=[];
     const duplicate=context
       ?p.logs.some(log=>dateKey(new Date(log.time))===context.rainDate && String(log.note || '').startsWith('降雨 '))
-      :(p.logs[0] && now-p.logs[0].time<=10000);
+      :p.logs.some(log=>Math.abs(now-Number(log.time))<=10000);
     if(duplicate){
       skipped++;
       return;
@@ -1037,6 +1152,11 @@ window.removePlant=id=>{
     save();
   }
 };
+window.editLog=(id,index)=>{
+  $('historyDialog').close();
+  openCare(id,{logIndex:index});
+};
+
 window.removeLog=(id,index)=>{
   if(!confirm('このケア記録を削除しますか？')) return;
   const p=data.plants.find(x=>x.id===id);

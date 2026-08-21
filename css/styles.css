@@ -261,3 +261,29 @@ textarea{min-height:76px;resize:vertical}
   opacity:0;pointer-events:none;transition:.2s;z-index:1000;max-width:90vw;text-align:center
 }
 .toast.show{opacity:1}
+
+
+/* v1.5: 過去の記録と履歴編集 */
+.history-actions{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:8px;
+  margin-top:10px;
+}
+.history-actions button{
+  width:100%;
+  padding:9px 10px;
+  font-size:13px;
+}
+.calendar-add-care{
+  width:100%;
+  margin:0 0 10px;
+  padding:10px 12px;
+  color:#2563eb;
+  background:#eff6ff;
+  border:1px solid #bfdbfe;
+}
+#batchWaterTimeHint{
+  display:block;
+  margin:6px 0 12px;
+}

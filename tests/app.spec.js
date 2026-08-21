@@ -25,7 +25,7 @@ test('主要画面がJavaScriptエラーなく表示される', async ({ page })
   page.on('pageerror', error => errors.push(error.message));
   await page.goto('/');
   await expect(page).toHaveTitle('塊根植物記録');
-  await expect(page.locator('#appVersionDisplay')).toHaveText('v1.4.0');
+  await expect(page.locator('#appVersionDisplay')).toHaveText('v1.5.0');
   await expect(page.locator('#addBtn')).toBeVisible();
   await expect(page.locator('#plantSearch')).toBeVisible();
   await expect(page.locator('#calendarViewBtn')).toBeVisible();
@@ -232,4 +232,96 @@ test('未バックアップ期間が7日を超えるとメニュー内で通知�
   await page.locator('#menuBtn').click();
   await expect(page.locator('#backupStatus')).toHaveClass(/due/);
   await expect(page.locator('#backupStatus')).toContainText('未バックアップ');
+});
+
+
+test('過去日時を指定してケアを記録しカレンダーへ反映する', async ({ page }) => {
+  await seed(page, [{ ...plants[0], logs: [] }]);
+  await page.goto('/');
+  await page.locator('.care').click();
+  await expect(page.locator('#careRecordedAt')).toHaveValue(/T/);
+  await page.locator('#careRecordedAt').fill('2026-08-20T08:30');
+  await page.locator('#waterAmount').fill('150ml');
+  await page.locator('#waterNote').fill('昨日分を追記');
+  await page.locator('#saveCare').click();
+
+  const saved = await page.evaluate(key => JSON.parse(localStorage.getItem(key)), storageKey);
+  expect(saved.plants[0].logs[0].time).toBe(new Date('2026-08-20T08:30').getTime());
+  expect(saved.plants[0].logs[0].note).toBe('昨日分を追記');
+
+  await page.locator('#calendarViewBtn').click();
+  await page.evaluate(() => window.selectCalendarDate('2026-08-20'));
+  await expect(page.locator('#calendarDayDetails')).toContainText('グラキリス・水やり');
+  await expect(page.locator('#calendarDayDetails')).toContainText('150ml');
+});
+
+test('未来日時のケア記録を拒否する', async ({ page }) => {
+  await seed(page, [{ ...plants[0], logs: [] }]);
+  await page.goto('/');
+  await page.locator('.care').click();
+  await page.locator('#careRecordedAt').fill('2099-01-01T00:00');
+  const alertPromise = page.waitForEvent('dialog');
+  await page.locator('#saveCare').click();
+  const dialog = await alertPromise;
+  expect(dialog.message()).toContain('未来の日時');
+  await dialog.dismiss();
+  await expect(page.locator('#careDialog')).toBeVisible();
+  const saved = await page.evaluate(key => JSON.parse(localStorage.getItem(key)), storageKey);
+  expect(saved.plants[0].logs).toHaveLength(0);
+});
+
+test('既存のケア履歴を日時と内容ごと編集する', async ({ page }) => {
+  const log = {
+    time: new Date('2026-08-19T08:00').getTime(),
+    care: '水やり',
+    type: '通常',
+    fertilizer: 'なし',
+    details: { waterAmount: '100ml' },
+    note: '旧メモ'
+  };
+  await seed(page, [{ ...plants[0], logs: [log] }]);
+  await page.goto('/');
+  await page.evaluate(() => window.showHistory('a'));
+  await page.locator('.history-actions .secondary').click();
+  await expect(page.locator('#saveCare')).toHaveText('変更を保存');
+  await page.locator('#careRecordedAt').fill('2026-08-18T07:15');
+  await page.locator('#waterAmount').fill('200ml');
+  await page.locator('#waterNote').fill('修正メモ');
+  await page.locator('#saveCare').click();
+
+  await expect(page.locator('#historyDialog')).toBeVisible();
+  await expect(page.locator('#historyList')).toContainText('修正メモ');
+  await expect(page.locator('#historyList')).toContainText('200ml');
+  const saved = await page.evaluate(key => JSON.parse(localStorage.getItem(key)), storageKey);
+  expect(saved.plants[0].logs).toHaveLength(1);
+  expect(saved.plants[0].logs[0].time).toBe(new Date('2026-08-18T07:15').getTime());
+});
+
+test('まとめて水やりを過去日時で複数株へ記録する', async ({ page }) => {
+  await seed(page, plants.slice(0, 2).map(plant => ({ ...plant, managementStatus: 'active', logs: [] })));
+  await page.goto('/');
+  await page.locator('#topBatchWaterBtn').click();
+  await page.locator('#batchSelectAll').click();
+  await page.locator('#batchWaterTime').fill('2026-08-20T09:45');
+  await page.locator('#saveBatchWater').click();
+
+  const saved = await page.evaluate(key => JSON.parse(localStorage.getItem(key)), storageKey);
+  const expected = new Date('2026-08-20T09:45').getTime();
+  expect(saved.plants.map(plant => plant.logs[0].time)).toEqual([expected, expected]);
+});
+
+test('カレンダーで選択した過去日にケアを追加する', async ({ page }) => {
+  await seed(page, [{ ...plants[0], logs: [] }]);
+  await page.goto('/');
+  await page.locator('#calendarViewBtn').click();
+  await page.evaluate(() => window.selectCalendarDate('2026-08-20'));
+  await page.locator('#addCareForDateBtn').click();
+  await expect(page.locator('#careRecordedAt')).toHaveValue(/^2026-08-20T/);
+  await page.locator('#saveCare').click();
+
+  const saved = await page.evaluate(key => JSON.parse(localStorage.getItem(key)), storageKey);
+  const recorded = new Date(saved.plants[0].logs[0].time);
+  expect(recorded.getFullYear()).toBe(2026);
+  expect(recorded.getMonth()).toBe(7);
+  expect(recorded.getDate()).toBe(20);
 });

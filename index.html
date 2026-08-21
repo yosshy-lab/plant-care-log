@@ -10,8 +10,8 @@
 <link rel="apple-touch-icon" sizes="180x180" href="./apple-touch-icon.png">
 <link rel="icon" type="image/png" href="./apple-touch-icon.png">
 <title>塊根植物記録</title>
-<script src="./js/analytics.js?v=1.4.0"></script>
-<link rel="stylesheet" href="./css/styles.css?v=1.4.0">
+<script src="./js/analytics.js?v=1.5.0"></script>
+<link rel="stylesheet" href="./css/styles.css?v=1.5.0">
 </head>
 <body>
 <div class="wrap">
@@ -135,7 +135,9 @@
       <div class="help-section-body">
         <p>水やり、薬剤散布、植え替え、施肥、状態・写真記録に対応しています。</p>
         <p>植物カードの「水やり」は、通常の水やり・液肥なしとしてすぐに記録します。詳しい内容を残す場合は「＋ ケアを記録」を使用してください。</p>
-        <p>過去の記録は植物の詳細画面下部にある「履歴を見る」から確認・削除できます。</p>
+        <p>「＋ ケアを記録」の記録日時を変更すると、昨日など過去のケアを登録できます。未来の日時は通常の履歴として登録できません。</p>
+        <p>過去の記録は植物の詳細画面下部にある「履歴を見る」から確認・編集・削除できます。</p>
+        <p>カレンダーで今日以前の日を選び、「この日のケアを追加」から登録することもできます。</p>
       </div>
     </details>
     <details class="help-section">
@@ -151,7 +153,7 @@
     <details class="help-section">
       <summary>まとめて水やり・ショートカット</summary>
       <div class="help-section-body">
-        <p>右上メニューの「まとめて水やり」では、複数の植物を選択して一度に記録できます。</p>
+        <p>右上メニューの「まとめて水やり」では、複数の植物を選択して一度に記録できます。記録日時を変更すると、過去の水やりもまとめて登録できます。</p>
         <p>個別植物やまとめて水やりのURLをコピーし、iPhoneのショートカットなどから開くこともできます。</p>
       </div>
     </details>
@@ -167,6 +169,7 @@
         <p>植物情報、ケア履歴、写真はこの端末のブラウザ内に保存されます。端末の故障・変更やSafariのWebサイトデータ削除によって消える可能性があります。</p>
         <p>右上メニューの「バックアップを保存」から、定期的にJSONファイルを保存してください。最終保存日時と対象件数もメニュー内で確認できます。</p>
         <p>バックアップから復元する際は、ファイル内容を検証し、現在のデータを端末内へ自動退避します。「復元前のデータへ戻す」で取り消せます。</p>
+        <div class="help-callout"><strong>大切な注意：</strong>Safariのタブと、ホーム画面から「Webアプリとして開く」場合では、保存データが別になることがあります。登録内容が見えないときは、元の画面でバックアップを保存してから、使いたい画面で復元してください。</div>
       </div>
     </details>
     <details class="help-section">
@@ -181,13 +184,6 @@
             <button class="secondary" id="helpAnalyticsSettingsBtn">アクセス解析を設定</button>
           </div>
         </details>
-      </div>
-    </details>
-    <details class="help-section">
-      <summary>データ保存・バックアップ</summary>
-      <div class="help-section-body">
-        <p>右上メニューからバックアップファイルを保存し、別の端末や別の開き方へ復元できます。</p>
-        <div class="help-callout"><strong>大切な注意：</strong>Safariのタブと、ホーム画面から「Webアプリとして開く」場合では、保存データが別になることがあります。登録内容が見えないときは、元の画面でバックアップを保存してから、使いたい画面で復元してください。</div>
       </div>
     </details>
     <div class="actions"><button id="closeHelp">閉じる</button></div>
@@ -309,6 +305,9 @@
       <option>施肥</option>
       <option>状態・写真記録</option>
     </select>
+    <label>記録日時</label>
+    <div class="date-field"><input id="careRecordedAt" type="datetime-local"></div>
+    <div class="hint">記録を忘れた場合は、実際にケアした過去の日時へ変更できます。</div>
     <div id="waterFields" class="care-fields">
       <label>水やり方法</label>
       <select id="waterType">
@@ -421,10 +420,26 @@
       <button class="secondary batch-select-all" id="batchSelectAll">すべて選択</button>
     </div>
     <div id="batchWaterHint" class="hint" style="margin:0 0 12px">水やりした株を選択してください。</div>
+    <label id="batchWaterTimeLabel">記録日時</label>
+    <div class="date-field"><input id="batchWaterTime" type="datetime-local"></div>
+    <div id="batchWaterTimeHint" class="hint">実際に水やりした過去の日時へ変更できます。</div>
     <div id="batchPlantList" class="batch-plant-list"></div>
     <div class="actions">
       <button class="secondary" id="cancelBatchWater">キャンセル</button>
       <button id="saveBatchWater" disabled>株を選択してください</button>
+    </div>
+  </div>
+</dialog>
+
+<dialog id="calendarCarePlantDialog">
+  <div class="modal">
+    <h2>過去のケアを追加</h2>
+    <div id="calendarCareDateText" class="hint"></div>
+    <label>植物を選択</label>
+    <select id="calendarCarePlant"></select>
+    <div class="actions">
+      <button class="secondary" id="cancelCalendarCare">キャンセル</button>
+      <button id="continueCalendarCare">ケアを入力</button>
     </div>
   </div>
 </dialog>
@@ -463,6 +478,6 @@
   </div>
 </dialog>
 
-<script src="./js/app.js?v=1.4.0"></script>
+<script src="./js/app.js?v=1.5.0"></script>
 </body>
 </html>
