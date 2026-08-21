@@ -50,15 +50,16 @@
   }
 
   window.setPlantCareAnalytics=function(enabled){
-    window.plantCareAnalyticsEnabled=Boolean(enabled);
+    const effectiveEnabled=analyticsAvailable && Boolean(enabled);
+    window.plantCareAnalyticsEnabled=effectiveEnabled;
     try{ localStorage.setItem(settingKey,enabled?'true':'false'); }catch(e){}
     window.gtag('consent','update',{
-      analytics_storage:enabled?'granted':'denied',
+      analytics_storage:effectiveEnabled?'granted':'denied',
       ad_storage:'denied',
       ad_user_data:'denied',
       ad_personalization:'denied'
     });
-    if(enabled && analyticsAvailable) loadAnalytics();
+    if(effectiveEnabled) loadAnalytics();
   };
 
   window.trackPlantCareEvent=function(name,params){
