@@ -17,7 +17,7 @@ h1{font-size:24px;margin:4px 0 4px}
 .menu-wrap.open{z-index:30}
 .menu-button{font-size:22px;line-height:1;padding:8px 12px;min-width:44px}
 .menu-panel{
-  position:absolute;right:0;top:calc(100% + 6px);z-index:20;width:210px;
+  position:absolute;right:0;top:calc(100% + 6px);z-index:20;width:min(260px,calc(100vw - 32px));
   padding:6px;background:#fff;border:1px solid var(--line);border-radius:14px;
   box-shadow:0 12px 32px rgba(0,0,0,.18)
 }
@@ -28,6 +28,16 @@ h1{font-size:24px;margin:4px 0 4px}
 .menu-panel button:active{background:var(--bg)}
 .menu-panel button.menu-danger{color:var(--danger)}
 .menu-separator{height:1px;background:var(--line);margin:5px 4px}
+.menu-backup-status{
+  margin:4px;padding:9px 10px;border-radius:9px;background:#f3f4f6;color:var(--muted);
+  font-size:11px;line-height:1.45
+}
+.menu-backup-status.due{background:#fff7ed;color:#9a3412}
+.menu-button.backup-due{position:relative}
+.menu-button.backup-due::after{
+  content:'';position:absolute;top:5px;right:5px;width:8px;height:8px;border-radius:50%;
+  background:#f97316;border:2px solid var(--bg)
+}
 .menu-version{display:flex;align-items:center;justify-content:space-between;padding:9px 12px 6px;color:var(--muted);font-size:11px}
 .menu-version strong{color:#4b5563;font-weight:750}
 .analytics-choice{display:flex;align-items:flex-start;gap:10px;margin:12px 0;color:var(--text);font-size:14px;line-height:1.5}
