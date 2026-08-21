@@ -134,6 +134,13 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .quick-water{background:#0e7490}
 .top-batch-water{background:#0e7490}
 .list-layout-toolbar{display:flex;justify-content:flex-end;margin:-4px 0 10px}
+.plant-filters{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr) minmax(0,1fr);gap:7px;margin-bottom:8px}
+.plant-filters input,.plant-filters select{margin:0}
+.filter-result-count{min-height:18px;margin:0 2px 8px;color:var(--muted);font-size:11px;text-align:right}
+.plant-status{display:inline-flex;align-items:center;margin-left:5px;padding:2px 6px;border-radius:999px;font-size:10px;font-weight:800;vertical-align:1px}
+.plant-status.dormant{background:#fef3c7;color:#92400e}
+.plant-status.ended{background:#e5e7eb;color:#4b5563}
+.care-closed-note{margin-top:10px;padding:11px;border-radius:11px;background:#f3f4f6;color:var(--muted);font-size:12px;font-weight:750;text-align:center}
 .list-layout-switch{display:grid;grid-template-columns:1fr 1fr;gap:3px;padding:3px;background:#e5e7eb;border-radius:12px}
 .list-layout-switch button{padding:7px 11px;background:transparent;color:var(--muted);font-size:13px;border-radius:9px}
 .list-layout-switch button.active{background:#fff;color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,.08)}
@@ -211,6 +218,10 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .weather-attribution a{color:inherit}
 .weather-status{padding:11px;border-radius:10px;background:var(--bg);font-size:13px;line-height:1.5;margin-bottom:10px;white-space:pre-line}
 .hidden{display:none!important}
+@media(max-width:520px){
+  .plant-filters{grid-template-columns:1fr 1fr}
+  .plant-filters input{grid-column:1/-1}
+}
 @media(max-width:420px){.calendar-day{min-height:62px}.calendar-panel{padding:9px}.calendar-filters{grid-template-columns:1fr}}
 .empty{text-align:center;color:var(--muted);padding:24px 10px}
 dialog{
@@ -360,6 +371,21 @@ textarea{min-height:76px;resize:vertical}
         <button id="gridLayoutBtn" aria-pressed="false">▦ 2列</button>
       </div>
     </div>
+    <div class="plant-filters" aria-label="株の検索と絞り込み">
+      <input id="plantSearch" type="search" placeholder="管理名・種類・場所などを検索" aria-label="株を検索">
+      <select id="plantStatusFilter" aria-label="管理状態で絞り込み">
+        <option value="current">管理中・休眠中</option>
+        <option value="active">管理中のみ</option>
+        <option value="dormant">休眠中のみ</option>
+        <option value="ended">管理終了のみ</option>
+        <option value="all">すべての管理状態</option>
+      </select>
+      <select id="plantStageFilter" aria-label="生育区分で絞り込み">
+        <option value="">すべての生育区分</option>
+        <option>成株</option><option>実生</option><option>播種</option>
+      </select>
+    </div>
+    <div id="filterResultCount" class="filter-result-count" aria-live="polite"></div>
     <div id="plants"></div>
   </div>
   <div id="calendarView" class="hidden">
@@ -426,6 +452,8 @@ textarea{min-height:76px;resize:vertical}
       <summary>一覧・2列表示とカレンダー</summary>
       <div class="help-section-body">
         <p>一覧画面は「リスト」と「2列」を切り替えられます。選択した表示形式は端末内に記憶されます。</p>
+        <p>検索欄と絞り込みを使うと、管理名・種類・管理場所・管理状態・生育区分から目的の株を探せます。</p>
+        <p>管理終了にした株は通常一覧から非表示になります。「管理終了のみ」または「すべての管理状態」で再表示できます。</p>
         <p>右上メニューの「株を並べ替える」から、一覧やまとめて水やりに表示する順序を変更できます。</p>
         <p>カレンダーではケア履歴や予定、取得済みの降水量を日付ごとに確認できます。</p>
       </div>
@@ -497,6 +525,12 @@ textarea{min-height:76px;resize:vertical}
       <option>成株</option>
       <option>実生</option>
       <option>播種</option>
+    </select>
+    <label>管理状態</label>
+    <select id="plantManagementStatus">
+      <option value="active">管理中</option>
+      <option value="dormant">休眠中</option>
+      <option value="ended">管理終了</option>
     </select>
 
     <details class="optional-section" id="acquisitionSection">
@@ -732,7 +766,7 @@ textarea{min-height:76px;resize:vertical}
 </dialog>
 
 <script>
-const APP_VERSION='1.2.0';
+const APP_VERSION='1.3.0';
 const KEY='plant-care-log-v1';
 const WEATHER_KEY='plant-care-weather-v1';
 const LIST_LAYOUT_KEY='plant-care-list-layout-v1';
@@ -841,31 +875,72 @@ function setListLayout(layout){
   applyListLayout();
 }
 
+function plantManagementStatus(plant){
+  return ['active','dormant','ended'].includes(plant.managementStatus)?plant.managementStatus:'active';
+}
+
+function plantStatusBadge(plant){
+  const status=plantManagementStatus(plant);
+  if(status==='dormant') return '<span class="plant-status dormant">休眠中</span>';
+  if(status==='ended') return '<span class="plant-status ended">管理終了</span>';
+  return '';
+}
+
+function filteredPlants(){
+  const query=$('plantSearch').value.trim().toLocaleLowerCase('ja-JP');
+  const statusFilter=$('plantStatusFilter').value;
+  const stageFilter=$('plantStageFilter').value;
+  return data.plants.filter(plant=>{
+    const status=plantManagementStatus(plant);
+    const statusMatch=statusFilter==='all' ||
+      (statusFilter==='current' && status!=='ended') ||
+      status===statusFilter;
+    const stageMatch=!stageFilter || (plant.stage || '成株')===stageFilter;
+    const searchTarget=[plant.name,plant.type,plant.location,plant.source,plant.memo]
+      .filter(Boolean).join(' ').toLocaleLowerCase('ja-JP');
+    const queryMatch=!query || searchTarget.includes(query);
+    return statusMatch && stageMatch && queryMatch;
+  });
+}
+
 function render(){
   const root=$('plants');
   applyListLayout();
   if(!data.plants.length){
+    $('filterResultCount').textContent='';
     root.innerHTML='<div class="card empty">まだ植物がありません。<br>「＋ 植物を追加」から登録してください。</div>';
     renderCalendarFilters();
     if(!$('calendarView').classList.contains('hidden')) renderCalendar();
     return;
   }
-  root.innerHTML=data.plants.map(p=>{
+  const visiblePlants=filteredPlants();
+  $('filterResultCount').textContent=`${visiblePlants.length}株を表示／登録 ${data.plants.length}株`;
+  if(!visiblePlants.length){
+    root.innerHTML='<div class="card empty">条件に一致する株がありません。<br>検索語や絞り込みを変更してください。</div>';
+    renderCalendarFilters();
+    if(!$('calendarView').classList.contains('hidden')) renderCalendar();
+    return;
+  }
+  root.innerHTML=visiblePlants.map(p=>{
     const last=p.logs?.[0];
     const e=elapsed(last?.time);
+    const status=plantManagementStatus(p);
+    const careActions=status==='ended'
+      ?'<div class="care-closed-note">管理終了した株です</div>'
+      :`<div class="care-actions">
+        <button class="care" onclick="event.stopPropagation();openCare('${p.id}')">＋ ケアを記録</button>
+        <button class="quick-water" onclick="event.stopPropagation();quickWater('${p.id}')">💧 水やり</button>
+      </div>`;
     return `<div class="card plant-card" role="button" tabindex="0"
       aria-label="${esc(p.name)}の詳細を表示"
       onclick="handlePlantCardClick('${p.id}',event)" onkeydown="handlePlantCardKey('${p.id}',event)">
       <div class="plant-summary">
         <div class="name">${esc(p.name)}</div>
-        <div class="meta">${esc(p.stage || '成株')}${p.type?` ・ ${esc(p.type)}`:''}</div>
+        <div class="meta">${esc(p.stage || '成株')}${p.type?` ・ ${esc(p.type)}`:''}${plantStatusBadge(p)}</div>
       </div>
       <div class="elapsed">${e.main} <span>${e.sub}</span></div>
       <div class="meta">前回：${fmtDate(last?.time)}</div>
-      <div class="care-actions">
-        <button class="care" onclick="event.stopPropagation();openCare('${p.id}')">＋ ケアを記録</button>
-        <button class="quick-water" onclick="event.stopPropagation();quickWater('${p.id}')">💧 水やり</button>
-      </div>
+      ${careActions}
     </div>`;
   }).join('');
   renderCalendarFilters();
@@ -898,6 +973,9 @@ window.quickWater=id=>{
 
 $('listLayoutBtn').onclick=()=>setListLayout('list');
 $('gridLayoutBtn').onclick=()=>setListLayout('grid');
+$('plantSearch').oninput=render;
+$('plantStatusFilter').onchange=render;
+$('plantStageFilter').onchange=render;
 
 function handlePlantCardClick(id,event){
   if(event.target.closest('button,.menu-panel')) return;
@@ -950,7 +1028,7 @@ function openPlantDetails(id){
     :'<div class="detail-value">ケア履歴はまだありません。</div>';
   $('plantDetailsContent').innerHTML=`
     <div class="detail-hero">${photo}<div><h2 class="detail-title">${esc(p.name)}</h2>
-      <div class="detail-subtitle">${esc(p.stage || '成株')}${p.type?` ・ ${esc(p.type)}`:''}</div>
+      <div class="detail-subtitle">${esc(p.stage || '成株')}${p.type?` ・ ${esc(p.type)}`:''}${plantStatusBadge(p)}</div>
       </div></div>
     ${acquisition?`<section class="detail-section"><h3>入手情報</h3><div class="detail-grid">${acquisition}</div></section>`:''}
     ${cultivation?`<section class="detail-section"><h3>栽培情報・メモ</h3><div class="detail-grid">${cultivation}</div></section>`:''}
@@ -1010,6 +1088,7 @@ function setPlantPhotoPreview(photo){
 function resetPlantForm(){
   PLANT_FIELD_IDS.forEach(id=>$(id).value='');
   $('plantStage').value='成株';
+  $('plantManagementStatus').value='active';
   $('plantAcquisitionMethod').value='';
   $('plantOrigin').value='';
   $('plantRainExposure').value='rain';
@@ -1039,6 +1118,7 @@ window.openPlantEditor=id=>{
   $('plantName').value=p.name || '';
   $('plantType').value=p.type || '';
   $('plantStage').value=p.stage || '成株';
+  $('plantManagementStatus').value=p.managementStatus || 'active';
   $('plantAcquiredDate').value=p.acquiredDate || '';
   $('plantAcquisitionMethod').value=p.acquisitionMethod || '';
   $('plantSource').value=p.source || '';
@@ -1085,6 +1165,7 @@ $('savePlant').onclick=()=>{
   const details={
     name,
     stage:$('plantStage').value,
+    managementStatus:$('plantManagementStatus').value,
     type:$('plantType').value.trim(),
     acquiredDate:$('plantAcquiredDate').value,
     acquisitionMethod:$('plantAcquisitionMethod').value,
@@ -1546,8 +1627,9 @@ let batchWaterContext=null;
 
 function openBatchWatering(context=null){
   closeDataMenu();
-  if(!data.plants.length){
-    alert('まとめて記録できる植物がありません。先に植物を追加してください。');
+  const availablePlants=data.plants.filter(plant=>plantManagementStatus(plant)!=='ended');
+  if(!availablePlants.length){
+    alert('まとめて記録できる管理中の植物がありません。');
     return;
   }
   batchWaterContext=context && context.rainDate?context:null;
@@ -1555,7 +1637,7 @@ function openBatchWatering(context=null){
   $('batchWaterHint').textContent=batchWaterContext
     ?`${batchWaterContext.rainDate} の降雨 ${Number(batchWaterContext.rainAmount).toFixed(1)}mm。雨が当たる設定の株を選択しています。`
     :'水やりした株を選択してください。';
-  $('batchPlantList').innerHTML=data.plants.map(p=>`
+  $('batchPlantList').innerHTML=availablePlants.map(p=>`
     <label class="batch-plant-row">
       <input class="batch-plant-check" type="checkbox" value="${esc(String(p.id))}" ${batchWaterContext && (p.rainExposure || 'rain')==='rain'?'checked':''}>
       <span>
