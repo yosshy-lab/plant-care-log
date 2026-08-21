@@ -898,8 +898,8 @@ window.openCalendarCare=date=>{
   $('calendarCarePlant').innerHTML=plants.map(plant=>`<option value="${esc(String(plant.id))}">${esc(plant.name)}</option>`).join('');
   $('calendarCarePlantDialog').showModal();
 };
-$('cancelCalendarCarePlant').onclick=()=> $('calendarCarePlantDialog').close();
-$('continueCalendarCarePlant').onclick=()=>{
+$('cancelCalendarCare').onclick=()=> $('calendarCarePlantDialog').close();
+$('continueCalendarCare').onclick=()=>{
   const id=$('calendarCarePlant').value;
   $('calendarCarePlantDialog').close();
   openCare(id,{date:calendarCareDate});
