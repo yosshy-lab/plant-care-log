@@ -10,6 +10,60 @@
 <link rel="apple-touch-icon" sizes="180x180" href="./apple-touch-icon.png">
 <link rel="icon" type="image/png" href="./apple-touch-icon.png">
 <title>塊根植物記録</title>
+<script>
+(function(){
+  const measurementId='G-1V4R4PFM9Y';
+  const settingKey='plant-care-analytics-enabled-v1';
+
+  function readEnabled(){
+    try{ return localStorage.getItem(settingKey)!=='false'; }
+    catch(e){ return true; }
+  }
+
+  window.plantCareAnalyticsEnabled=readEnabled();
+  window.dataLayer=window.dataLayer || [];
+  window.gtag=function(){ window.dataLayer.push(arguments); };
+
+  function loadAnalytics(){
+    if(document.querySelector('script[data-plant-care-analytics]')) return;
+    window.gtag('consent','default',{
+      analytics_storage:'granted',
+      ad_storage:'denied',
+      ad_user_data:'denied',
+      ad_personalization:'denied'
+    });
+    const script=document.createElement('script');
+    script.async=true;
+    script.dataset.plantCareAnalytics='';
+    script.src='https://www.googletagmanager.com/gtag/js?id='+encodeURIComponent(measurementId);
+    document.head.appendChild(script);
+    window.gtag('js',new Date());
+    window.gtag('config',measurementId,{
+      allow_google_signals:false,
+      allow_ad_personalization_signals:false
+    });
+  }
+
+  window.setPlantCareAnalytics=function(enabled){
+    window.plantCareAnalyticsEnabled=Boolean(enabled);
+    try{ localStorage.setItem(settingKey,enabled?'true':'false'); }catch(e){}
+    window.gtag('consent','update',{
+      analytics_storage:enabled?'granted':'denied',
+      ad_storage:'denied',
+      ad_user_data:'denied',
+      ad_personalization:'denied'
+    });
+    if(enabled) loadAnalytics();
+  };
+
+  window.trackPlantCareEvent=function(name,params){
+    if(!window.plantCareAnalyticsEnabled) return;
+    window.gtag('event',name,params || {});
+  };
+
+  if(window.plantCareAnalyticsEnabled) loadAnalytics();
+})();
+</script>
 <style>
 :root{
   --bg:#f3f4f6;--card:#fff;--text:#111827;--muted:#6b7280;
@@ -43,6 +97,8 @@ h1{font-size:24px;margin:4px 0 4px}
 .menu-separator{height:1px;background:var(--line);margin:5px 4px}
 .menu-version{display:flex;align-items:center;justify-content:space-between;padding:9px 12px 6px;color:var(--muted);font-size:11px}
 .menu-version strong{color:#4b5563;font-weight:750}
+.analytics-choice{display:flex;align-items:flex-start;gap:10px;margin:12px 0;color:var(--text);font-size:14px;line-height:1.5}
+.analytics-choice input{width:auto;flex:none;margin:3px 0 0}
 .toolbar{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
 .view-switch{display:grid;grid-template-columns:1fr 1fr;gap:4px;background:#e5e7eb;padding:4px;border-radius:14px;margin-bottom:14px}
 .view-switch button{background:transparent;color:var(--muted);padding:9px}
@@ -245,6 +301,7 @@ textarea{min-height:76px;resize:vertical}
         <button id="batchShortcutBtn" role="menuitem">まとめて水やりURLをコピー</button>
         <div class="menu-separator" role="separator"></div>
         <button id="weatherSettingsBtn" role="menuitem">天気・位置設定</button>
+        <button id="analyticsSettingsBtn" role="menuitem">アクセス解析設定</button>
         <div class="menu-separator" role="separator"></div>
         <button id="exportBtn" role="menuitem">バックアップを保存</button>
         <button id="importBtn" role="menuitem">バックアップから復元</button>
@@ -357,6 +414,14 @@ textarea{min-height:76px;resize:vertical}
       </div>
     </details>
     <details class="help-section">
+      <summary>プライバシー・アクセス解析</summary>
+      <div class="help-section-body">
+        <p>サービス改善のため、Google Analyticsで閲覧数や機能の利用状況を匿名で収集します。植物名、写真、メモ、正確な位置情報、バックアップ内容は送信しません。</p>
+        <p>右上メニューの「アクセス解析設定」から、いつでも収集を停止できます。</p>
+        <p><a href="https://policies.google.com/technologies/partner-sites" target="_blank" rel="noopener">Googleによるデータ利用について</a></p>
+      </div>
+    </details>
+    <details class="help-section">
       <summary>データ保存・バックアップ</summary>
       <div class="help-section-body">
         <p>右上メニューからバックアップファイルを保存し、別の端末や別の開き方へ復元できます。</p>
@@ -364,6 +429,23 @@ textarea{min-height:76px;resize:vertical}
       </div>
     </details>
     <div class="actions"><button id="closeHelp">閉じる</button></div>
+  </div>
+</dialog>
+
+<dialog id="analyticsDialog">
+  <div class="modal">
+    <h2>アクセス解析設定</h2>
+    <p class="hint">サービス改善のため、Google Analyticsで閲覧数や機能の利用状況を匿名で収集します。</p>
+    <label class="analytics-choice">
+      <input id="analyticsEnabled" type="checkbox">
+      <span>匿名の利用状況を送信する</span>
+    </label>
+    <div class="help-callout">植物名、写真、メモ、正確な位置情報、バックアップ内容は送信しません。</div>
+    <p class="hint"><a href="https://policies.google.com/technologies/partner-sites" target="_blank" rel="noopener">Googleによるデータ利用について</a></p>
+    <div class="actions">
+      <button class="secondary" id="cancelAnalytics">キャンセル</button>
+      <button id="saveAnalytics">設定を保存</button>
+    </div>
   </div>
 </dialog>
 
@@ -602,7 +684,7 @@ textarea{min-height:76px;resize:vertical}
 </dialog>
 
 <script>
-const APP_VERSION='1.0.0';
+const APP_VERSION='1.1.0';
 const KEY='plant-care-log-v1';
 const WEATHER_KEY='plant-care-weather-v1';
 const LIST_LAYOUT_KEY='plant-care-list-layout-v1';
@@ -760,8 +842,10 @@ window.quickWater=id=>{
   };
   p.logs.unshift(log);
   p.logs.sort((a,b)=>b.time-a.time);
-  if(save()) toast(`💧 ${p.name} の水やりを記録しました`);
-  else p.logs=p.logs.filter(item=>item!==log);
+  if(save()){
+    toast(`💧 ${p.name} の水やりを記録しました`);
+    trackPlantCareEvent('water_recorded',{method:'quick'});
+  }else p.logs=p.logs.filter(item=>item!==log);
 };
 
 $('listLayoutBtn').onclick=()=>setListLayout('list');
@@ -824,6 +908,7 @@ function openPlantDetails(id){
     ${cultivation?`<section class="detail-section"><h3>栽培情報・メモ</h3><div class="detail-grid">${cultivation}</div></section>`:''}
     <section class="detail-section"><h3>直近のケア</h3>${latest}</section>`;
   $('plantDetailsDialog').showModal();
+  trackPlantCareEvent('plant_details_viewed');
 }
 
 $('closePlantDetails').onclick=()=> $('plantDetailsDialog').close();
@@ -974,6 +1059,7 @@ $('savePlant').onclick=()=>{
     if(save()){
       $('plantDialog').close();
       toast('株情報を更新しました');
+      trackPlantCareEvent('plant_updated');
     }else{
       Object.assign(p,previous);
       render();
@@ -989,6 +1075,7 @@ $('savePlant').onclick=()=>{
     if(save()){
       $('plantDialog').close();
       toast('植物を登録しました');
+      trackPlantCareEvent('plant_added');
     }else{
       data.plants=data.plants.filter(p=>p!==newPlant);
       render();
@@ -1121,8 +1208,10 @@ $('saveCare').onclick=async()=>{
     photo
   };
   p.logs.unshift(log);
-  if(save()) $('careDialog').close();
-  else p.logs.shift();
+  if(save()){
+    $('careDialog').close();
+    trackPlantCareEvent('care_recorded',{care_type:care});
+  }else p.logs.shift();
 };
 
 function careDetailHtml(l){
@@ -1296,8 +1385,14 @@ function setView(view){
   }
 }
 
-$('listViewBtn').onclick=()=>setView('list');
-$('calendarViewBtn').onclick=()=>setView('calendar');
+$('listViewBtn').onclick=()=>{
+  setView('list');
+  trackPlantCareEvent('list_viewed');
+};
+$('calendarViewBtn').onclick=()=>{
+  setView('calendar');
+  trackPlantCareEvent('calendar_viewed');
+};
 $('prevMonth').onclick=()=>{
   calendarMonth=new Date(calendarMonth.getFullYear(),calendarMonth.getMonth()-1,1);
   selectedCalendarDate=dateKey(calendarMonth);
@@ -1420,6 +1515,10 @@ $('saveBatchWater').onclick=()=>{
   if(save()){
     $('batchWaterDialog').close();
     batchWaterContext=null;
+    trackPlantCareEvent('batch_water_recorded',{
+      source:context?'rain':'manual',
+      plant_count:additions.length
+    });
     const suffix=skipped?`（${skipped}株は重複防止）`:'';
     toast(`${context?'☔':'💧'} ${additions.length}株の${context?'降雨':'水やり'}を記録しました${suffix}`);
   }else{
@@ -1466,8 +1565,22 @@ $('menuBtn').onclick=e=>{
 $('helpBtn').onclick=()=>{
   closeDataMenu();
   $('helpDialog').showModal();
+  trackPlantCareEvent('help_viewed');
 };
 $('closeHelp').onclick=()=> $('helpDialog').close();
+
+$('analyticsSettingsBtn').onclick=()=>{
+  closeDataMenu();
+  $('analyticsEnabled').checked=window.plantCareAnalyticsEnabled;
+  $('analyticsDialog').showModal();
+};
+$('cancelAnalytics').onclick=()=> $('analyticsDialog').close();
+$('saveAnalytics').onclick=()=>{
+  const enabled=$('analyticsEnabled').checked;
+  window.setPlantCareAnalytics(enabled);
+  $('analyticsDialog').close();
+  toast(enabled?'匿名のアクセス解析を有効にしました':'アクセス解析を停止しました');
+};
 
 function closeDataMenu(){
   $('dataMenu').hidden=true;
@@ -1641,6 +1754,7 @@ $('saveWeather').onclick=()=>{
 
 $('exportBtn').onclick=()=>{
   closeDataMenu();
+  trackPlantCareEvent('backup_exported');
   const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
   const a=document.createElement('a');
   a.href=URL.createObjectURL(blob);
@@ -1679,6 +1793,7 @@ $('importFile').onchange=async()=>{
     data=restored;
     if(save()){
       toast(`${restoredCount}株のデータを復元しました`);
+      trackPlantCareEvent('backup_restored');
     }else{
       data=previous;
       render();
