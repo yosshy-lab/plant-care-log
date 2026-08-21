@@ -141,6 +141,7 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .plant-status.dormant{background:#fef3c7;color:#92400e}
 .plant-status.ended{background:#e5e7eb;color:#4b5563}
 .care-closed-note{margin-top:10px;padding:11px;border-radius:11px;background:#f3f4f6;color:var(--muted);font-size:12px;font-weight:750;text-align:center}
+#plants.grid-layout .care-closed-note{margin-top:auto}
 .list-layout-switch{display:grid;grid-template-columns:1fr 1fr;gap:3px;padding:3px;background:#e5e7eb;border-radius:12px}
 .list-layout-switch button{padding:7px 11px;background:transparent;color:var(--muted);font-size:13px;border-radius:9px}
 .list-layout-switch button.active{background:#fff;color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,.08)}
@@ -950,6 +951,7 @@ function render(){
 window.quickWater=id=>{
   const p=data.plants.find(x=>String(x.id)===String(id));
   if(!p) return;
+  if(plantManagementStatus(p)==='ended') return toast('管理終了した株には記録できません');
   if(!Array.isArray(p.logs)) p.logs=[];
   const now=Date.now();
   if(p.logs.some(log=>Math.abs(now-Number(log.time))<=10000)){
@@ -1033,6 +1035,7 @@ function openPlantDetails(id){
     ${acquisition?`<section class="detail-section"><h3>入手情報</h3><div class="detail-grid">${acquisition}</div></section>`:''}
     ${cultivation?`<section class="detail-section"><h3>栽培情報・メモ</h3><div class="detail-grid">${cultivation}</div></section>`:''}
     <section class="detail-section"><h3>直近のケア</h3>${latest}</section>`;
+  $('carePlantDetails').disabled=plantManagementStatus(p)==='ended';
   $('plantDetailsDialog').showModal();
   trackPlantCareEvent('plant_details_viewed');
 }
@@ -1268,6 +1271,8 @@ function compressImage(file){
 window.openCare=id=>{
   currentId=id;
   const p=data.plants.find(x=>String(x.id)===id);
+  if(!p) return;
+  if(plantManagementStatus(p)==='ended') return toast('管理終了した株には記録できません');
   $('careTitle').textContent=`${p.name} のケア記録`;
   $('careType').value='水やり';
   resetCareForm();
@@ -2024,6 +2029,11 @@ function autoRecordFromUrl(){
   if(!p){
     history.replaceState({},'',location.pathname);
     setTimeout(()=>toast('対象の株が見つかりませんでした'),100);
+    return;
+  }
+  if(plantManagementStatus(p)==='ended'){
+    history.replaceState({},'',location.pathname);
+    setTimeout(()=>toast('管理終了した株には記録できません'),100);
     return;
   }
 
