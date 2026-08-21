@@ -159,7 +159,7 @@ test('バックアップに件数とバージョン情報を含めて保存す�
   expect(payload).toMatchObject({
     format: 'plant-care-log-backup',
     schemaVersion: 1,
-    appVersion: '1.4.0'
+    appVersion: '1.5.0'
   });
   expect(payload.plants).toHaveLength(3);
 
@@ -174,7 +174,7 @@ test('復元前に自動退避し、復元を取り消せる', async ({ page }) 
   const incoming = {
     format: 'plant-care-log-backup',
     schemaVersion: 1,
-    appVersion: '1.4.0',
+    appVersion: '1.5.0',
     exportedAt: Date.now(),
     plants: [{ ...plants[1], managementStatus: 'active' }]
   };
@@ -260,11 +260,15 @@ test('未来日時のケア記録を拒否する', async ({ page }) => {
   await page.goto('/');
   await page.locator('.care').click();
   await page.locator('#careRecordedAt').fill('2099-01-01T00:00');
-  const alertPromise = page.waitForEvent('dialog');
+  const alertPromise = new Promise(resolve => {
+    page.once('dialog', async dialog => {
+      expect(dialog.message()).toContain('未来の日時');
+      await dialog.dismiss();
+      resolve();
+    });
+  });
   await page.locator('#saveCare').click();
-  const dialog = await alertPromise;
-  expect(dialog.message()).toContain('未来の日時');
-  await dialog.dismiss();
+  await alertPromise;
   await expect(page.locator('#careDialog')).toBeVisible();
   const saved = await page.evaluate(key => JSON.parse(localStorage.getItem(key)), storageKey);
   expect(saved.plants[0].logs).toHaveLength(0);
