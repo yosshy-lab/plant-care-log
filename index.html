@@ -125,15 +125,19 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .meta{font-size:13px;color:var(--muted);margin-top:4px}
 .elapsed{font-size:27px;font-weight:900;margin:12px 0 4px}
 .elapsed span{font-size:13px;color:var(--muted);font-weight:600}
-.care-actions{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,.72fr);gap:7px;margin-top:10px}
-.care{width:100%;background:var(--accent);font-size:16px;padding:13px 8px}
-.quick-water{width:100%;background:#0e7490;font-size:16px;padding:13px 8px}
+.care-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-items:stretch;gap:7px;margin-top:10px}
+.care,.quick-water{
+  display:flex;align-items:center;justify-content:center;width:100%;min-width:0;min-height:48px;
+  padding:11px 8px;font-size:16px;line-height:1.25;text-align:center
+}
+.care{background:var(--accent)}
+.quick-water{background:#0e7490}
 .top-batch-water{background:#0e7490}
 .list-layout-toolbar{display:flex;justify-content:flex-end;margin:-4px 0 10px}
 .list-layout-switch{display:grid;grid-template-columns:1fr 1fr;gap:3px;padding:3px;background:#e5e7eb;border-radius:12px}
 .list-layout-switch button{padding:7px 11px;background:transparent;color:var(--muted);font-size:13px;border-radius:9px}
 .list-layout-switch button.active{background:#fff;color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,.08)}
-.plant-card{position:relative;cursor:pointer}
+.plant-card{position:relative;cursor:pointer;container-type:inline-size}
 .plant-card:focus-visible{outline:3px solid #93c5fd;outline-offset:2px}
 #plants.grid-layout{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-auto-rows:1fr;gap:9px}
 #plants.grid-layout .card{display:flex;flex-direction:column;min-width:0;height:100%;margin-bottom:0;padding:12px}
@@ -149,7 +153,11 @@ button:disabled{opacity:.45;cursor:not-allowed}
 #plants.grid-layout .elapsed span{display:block;font-size:10px;margin-top:2px}
 #plants.grid-layout .elapsed+.meta{min-height:2.7em}
 #plants.grid-layout .care-actions{gap:5px;margin-top:auto}
-#plants.grid-layout .care,#plants.grid-layout .quick-water{font-size:11px;padding:10px 3px;white-space:nowrap}
+#plants.grid-layout .care,#plants.grid-layout .quick-water{min-height:42px;font-size:11px;padding:9px 5px;white-space:normal}
+@container (max-width:230px){
+  .care-actions{grid-template-columns:1fr}
+  .care,.quick-water{min-height:40px}
+}
 .care-fields[hidden]{display:none}
 .check-row{display:flex;align-items:center;gap:8px;margin-top:10px;color:var(--text);font-size:14px}
 .check-row input{width:auto}
@@ -702,7 +710,7 @@ textarea{min-height:76px;resize:vertical}
 </dialog>
 
 <script>
-const APP_VERSION='1.1.0';
+const APP_VERSION='1.1.1';
 const KEY='plant-care-log-v1';
 const WEATHER_KEY='plant-care-weather-v1';
 const LIST_LAYOUT_KEY='plant-care-list-layout-v1';
