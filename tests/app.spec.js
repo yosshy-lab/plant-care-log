@@ -4,8 +4,11 @@ const storageKey = 'plant-care-log-v1';
 
 async function seed(page, plants = []) {
   await page.addInitScript(({ key, value }) => {
-    localStorage.setItem(key, JSON.stringify({ plants: value }));
-    localStorage.setItem('plant-care-analytics-enabled-v1', 'false');
+    if (!sessionStorage.getItem('playwright-data-seeded')) {
+      localStorage.setItem(key, JSON.stringify({ plants: value }));
+      localStorage.setItem('plant-care-analytics-enabled-v1', 'false');
+      sessionStorage.setItem('playwright-data-seeded', 'true');
+    }
   }, { key: storageKey, value: plants });
 }
 
