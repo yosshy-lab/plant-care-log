@@ -10,8 +10,8 @@
 <link rel="apple-touch-icon" sizes="180x180" href="./apple-touch-icon.png">
 <link rel="icon" type="image/png" href="./apple-touch-icon.png">
 <title>塊根植物記録</title>
-<script src="./js/analytics.js?v=1.3.2"></script>
-<link rel="stylesheet" href="./css/styles.css?v=1.3.2">
+<script src="./js/analytics.js?v=1.4.0"></script>
+<link rel="stylesheet" href="./css/styles.css?v=1.4.0">
 </head>
 <body>
 <div class="wrap">
@@ -31,8 +31,10 @@
         <div class="menu-separator" role="separator"></div>
         <button id="weatherSettingsBtn" role="menuitem">天気・位置設定</button>
         <div class="menu-separator" role="separator"></div>
+        <div id="backupStatus" class="menu-backup-status" role="status"></div>
         <button id="exportBtn" role="menuitem">バックアップを保存</button>
         <button id="importBtn" role="menuitem">バックアップから復元</button>
+        <button id="restorePreImportBtn" role="menuitem" hidden>復元前のデータへ戻す</button>
         <div class="menu-separator" role="separator"></div>
         <div class="menu-version" aria-label="アプリのバージョン">
           <span>バージョン</span><strong id="appVersionDisplay"></strong>
@@ -157,6 +159,14 @@
       <summary>天気・降水量</summary>
       <div class="help-section-body">
         <p>右上メニューの「天気・位置設定」で現在地を設定すると、降水量をカレンダーに表示できます。雨が当たる株を選び、降雨を水やりとして記録することもできます。</p>
+      </div>
+    </details>
+    <details class="help-section">
+      <summary>データ保存・バックアップ</summary>
+      <div class="help-section-body">
+        <p>植物情報、ケア履歴、写真はこの端末のブラウザ内に保存されます。端末の故障・変更やSafariのWebサイトデータ削除によって消える可能性があります。</p>
+        <p>右上メニューの「バックアップを保存」から、定期的にJSONファイルを保存してください。最終保存日時と対象件数もメニュー内で確認できます。</p>
+        <p>バックアップから復元する際は、ファイル内容を検証し、現在のデータを端末内へ自動退避します。「復元前のデータへ戻す」で取り消せます。</p>
       </div>
     </details>
     <details class="help-section">
@@ -453,6 +463,6 @@
   </div>
 </dialog>
 
-<script src="./js/app.js?v=1.3.2"></script>
+<script src="./js/app.js?v=1.4.0"></script>
 </body>
 </html>
