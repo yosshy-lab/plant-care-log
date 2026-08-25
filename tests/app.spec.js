@@ -76,6 +76,7 @@ test('株登録写真をIndexedDBへ保存しLocalStorageには画像本体を�
   await page.locator('#plantPhoto').setInputFiles('apple-touch-icon.png');
   await expect(page.locator('#plantPhotoPreview')).toBeVisible();
   await page.locator('#savePlant').click();
+  await expect(page.locator('#plantDialog')).toBeHidden();
 
   const saved = await page.evaluate(key => JSON.parse(localStorage.getItem(key)), storageKey);
   expect(saved.plants[0].photo).toBe('');
