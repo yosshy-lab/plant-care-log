@@ -32,6 +32,24 @@ test('主要画面がJavaScriptエラーなく表示される', async ({ page })
   expect(errors).toEqual([]);
 });
 
+test('更新案内は新バージョンの初回だけ表示しメニューから再確認できる', async ({ page }) => {
+  await seed(page);
+  await page.goto('/');
+  await expect(page.locator('#releaseNotice')).toBeVisible();
+  await expect(page.locator('#releaseNotice')).toContainText('v1.6.0 更新');
+  await expect(page.locator('#releaseNotice')).toContainText('ケア予定と当日降雨記録に対応');
+
+  await page.reload();
+  await expect(page.locator('#releaseNotice')).toBeHidden();
+
+  await page.locator('#menuBtn').click();
+  await page.locator('#releaseNotesBtn').click();
+  await expect(page.locator('#releaseNotesDialog')).toBeVisible();
+  await expect(page.locator('#releaseNotesList')).toContainText('v1.6.0');
+  await expect(page.locator('#releaseNotesList')).toContainText('隔週・隔月');
+  await expect(page.locator('#releaseNotesList')).toContainText('v1.0.0');
+});
+
 test('植物を登録し、保存後も表示できる', async ({ page }) => {
   await seed(page);
   await page.goto('/');

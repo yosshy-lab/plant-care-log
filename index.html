@@ -24,6 +24,7 @@
       <button class="secondary menu-button" id="menuBtn" aria-label="メニュー" aria-haspopup="true" aria-expanded="false">⋯</button>
       <div class="menu-panel" id="dataMenu" role="menu" hidden>
         <button id="helpBtn" role="menuitem">使い方・ヘルプ</button>
+        <button id="releaseNotesBtn" role="menuitem">更新情報</button>
         <div class="menu-separator" role="separator"></div>
         <button id="batchWaterBtn" role="menuitem">まとめて水やり</button>
         <button id="batchShortcutBtn" role="menuitem">まとめて水やりURLをコピー</button>
@@ -42,6 +43,14 @@
       </div>
     </div>
   </div>
+
+  <aside id="releaseNotice" class="release-notice" aria-label="更新情報" hidden>
+    <div class="release-notice-copy">
+      <span id="releaseNoticeVersion" class="release-notice-version"></span>
+      <strong id="releaseNoticeTitle"></strong>
+    </div>
+    <button id="releaseNoticeDetails" class="secondary" type="button">更新内容を見る</button>
+  </aside>
 
   <div class="toolbar">
     <button id="addBtn">＋ 植物を追加</button>
@@ -189,6 +198,15 @@
       </div>
     </details>
     <div class="actions"><button id="closeHelp">閉じる</button></div>
+  </div>
+</dialog>
+
+<dialog id="releaseNotesDialog">
+  <div class="modal">
+    <h2>更新情報</h2>
+    <p class="hint">塊根植物記録の主な変更内容です。</p>
+    <div id="releaseNotesList" class="release-notes-list"></div>
+    <div class="actions"><button id="closeReleaseNotes">閉じる</button></div>
   </div>
 </dialog>
 

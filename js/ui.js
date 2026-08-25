@@ -10,6 +10,69 @@ function toast(msg){
 function esc(s=''){
   return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 }
+
+const RELEASE_NOTES=[
+  {
+    version:'1.6.0',date:'2026年8月25日',title:'ケア予定と当日降雨記録に対応',
+    items:[
+      '単発または日・週・月単位の繰り返しケア予定を登録できるようになりました。',
+      '隔週・隔月など、任意の間隔を指定できます。',
+      '当日の降水も、予報を含む注意を確認して水やりとして記録できます。',
+      'ケア予定をバックアップ・復元の対象に追加しました。'
+    ]
+  },
+  {
+    version:'1.5.1',date:'2026年8月22日',title:'説明文と内部構成を整備',
+    items:['README、プライバシー説明、利用上の注意を整備しました。','JavaScriptを機能別ファイルへ分割しました。']
+  },
+  {
+    version:'1.5.0',date:'2026年8月21日',title:'過去のケア記録を拡充',
+    items:['過去日時のケア登録と、既存履歴の編集に対応しました。','カレンダーの過去日からケアを追加できるようになりました。']
+  },
+  {
+    version:'1.4.0',date:'2026年8月21日',title:'バックアップを強化',
+    items:['バックアップ時期の案内、内容検証、復元取り消しを追加しました。']
+  },
+  {
+    version:'1.3.0〜1.3.2',date:'2026年8月21日',title:'検索と品質確認を追加',
+    items:['株の検索・絞り込み、休眠・管理終了に対応しました。','自動テストとJavaScript・CSSのファイル分割を導入しました。']
+  },
+  {
+    version:'1.2.0',date:'2026年8月21日',title:'並べ替えとカレンダーを改善',
+    items:['株の並べ替えと、カレンダーの土日表示を追加しました。']
+  },
+  {
+    version:'1.1.0〜1.1.1',date:'2026年8月21日',title:'アクセス解析と表示を改善',
+    items:['任意停止できる匿名アクセス解析を追加しました。','ケア操作ボタンの幅とレスポンシブ表示を整えました。']
+  },
+  {
+    version:'1.0.0',date:'2026年8月21日',title:'最初の正式版',
+    items:['植物情報、ケア履歴、カレンダー、降水量、バックアップなどの基本機能を公開しました。']
+  }
+];
+
+function openReleaseNotes(source='menu'){
+  closeDataMenu();
+  $('releaseNotesList').innerHTML=RELEASE_NOTES.map((release,index)=>`
+    <section class="release-note-item${index===0?' latest':''}">
+      <div class="release-note-heading">
+        <strong>v${esc(release.version)}</strong><span>${esc(release.date)}</span>
+      </div>
+      <h3>${esc(release.title)}</h3>
+      <ul>${release.items.map(item=>`<li>${esc(item)}</li>`).join('')}</ul>
+    </section>`).join('');
+  $('releaseNotesDialog').showModal();
+  trackPlantCareEvent('release_notes_viewed',{source});
+}
+
+function initializeReleaseNotes(){
+  const latest=RELEASE_NOTES[0];
+  $('releaseNoticeVersion').textContent=`v${latest.version} 更新`;
+  $('releaseNoticeTitle').textContent=latest.title;
+  const alreadySeen=localStorage.getItem(RELEASE_SEEN_KEY)===APP_VERSION;
+  $('releaseNotice').hidden=alreadySeen;
+  if(!alreadySeen) localStorage.setItem(RELEASE_SEEN_KEY,APP_VERSION);
+}
 function fmtDate(ts){
   if(!ts) return '記録なし';
   const d=new Date(ts);
@@ -1008,6 +1071,9 @@ $('helpBtn').onclick=()=>{
   trackPlantCareEvent('help_viewed');
 };
 $('closeHelp').onclick=()=> $('helpDialog').close();
+$('releaseNotesBtn').onclick=()=>openReleaseNotes('menu');
+$('releaseNoticeDetails').onclick=()=>openReleaseNotes('notice');
+$('closeReleaseNotes').onclick=()=> $('releaseNotesDialog').close();
 
 function openAnalyticsSettings(){
   closeDataMenu();

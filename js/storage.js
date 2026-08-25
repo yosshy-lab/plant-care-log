@@ -4,6 +4,7 @@ const WEATHER_KEY='plant-care-weather-v1';
 const LIST_LAYOUT_KEY='plant-care-list-layout-v1';
 const BACKUP_META_KEY='plant-care-backup-meta-v1';
 const PRE_RESTORE_KEY='plant-care-pre-restore-v1';
+const RELEASE_SEEN_KEY='plant-care-release-seen-v1';
 const BACKUP_REMINDER_MS=30*24*60*60*1000;
 const FIRST_BACKUP_REMINDER_MS=7*24*60*60*1000;
 const LEGACY_KEYS=['pachypodium-water-log-v2','pachypodium-water-log-v1'];
