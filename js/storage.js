@@ -1,4 +1,4 @@
-const APP_VERSION='1.5.1';
+const APP_VERSION='1.6.0';
 const KEY='plant-care-log-v1';
 const WEATHER_KEY='plant-care-weather-v1';
 const LIST_LAYOUT_KEY='plant-care-list-layout-v1';
@@ -22,9 +22,10 @@ function saveBackupMeta(meta){
 function backupSummary(targetData=data){
   const plants=Array.isArray(targetData?.plants)?targetData.plants:[];
   const logs=plants.reduce((sum,plant)=>sum+(Array.isArray(plant.logs)?plant.logs.length:0),0);
+  const plans=plants.reduce((sum,plant)=>sum+(Array.isArray(plant.plans)?plant.plans.length:0),0);
   const photos=plants.reduce((sum,plant)=>
     sum+(plant.photo?1:0)+(Array.isArray(plant.logs)?plant.logs.filter(log=>log?.photo).length:0),0);
-  return {plants:plants.length,logs,photos};
+  return {plants:plants.length,logs,plans,photos};
 }
 
 function createBackupPayload(targetData=data){
@@ -47,14 +48,26 @@ function validateBackup(input){
     if(ids.has(id)) return false;
     ids.add(id);
     if('logs' in plant && !Array.isArray(plant.logs)) return false;
-    return (plant.logs || []).every(log=>
+    if('plans' in plant && !Array.isArray(plant.plans)) return false;
+    const validLogs=(plant.logs || []).every(log=>
       log && typeof log==='object' && Number.isFinite(Number(log.time)) &&
       (!('care' in log) || typeof log.care==='string')
     );
+    const validPlans=(plant.plans || []).every(plan=>
+      plan && typeof plan==='object' && (typeof plan.id==='string' || typeof plan.id==='number') &&
+      Number.isFinite(Number(plan.startAt)) && typeof plan.care==='string' &&
+      plan.recurrence && ['none','day','week','month'].includes(plan.recurrence.unit) &&
+      Number.isInteger(Number(plan.recurrence.interval)) && Number(plan.recurrence.interval)>=1
+    );
+    return validLogs && validPlans;
   });
   if(!valid) throw new Error('invalid backup');
   return {
-    plants:input.plants.map(plant=>({...plant,logs:Array.isArray(plant.logs)?plant.logs:[]})),
+    plants:input.plants.map(plant=>({
+      ...plant,
+      logs:Array.isArray(plant.logs)?plant.logs:[],
+      plans:Array.isArray(plant.plans)?plant.plans:[]
+    })),
     exportedAt:Number(input.exportedAt) || null
   };
 }
@@ -73,7 +86,12 @@ function readStoredData(key){
   if(!value) return null;
   try{
     const parsed=JSON.parse(value);
-    return parsed && Array.isArray(parsed.plants) ? parsed : null;
+    if(!parsed || !Array.isArray(parsed.plants)) return null;
+    return {plants:parsed.plants.map(plant=>({
+      ...plant,
+      logs:Array.isArray(plant.logs)?plant.logs:[],
+      plans:Array.isArray(plant.plans)?plant.plans:[]
+    }))};
   }catch(e){
     console.warn(`保存データを読み込めませんでした: ${key}`, e);
     return null;
@@ -119,7 +137,7 @@ function backupStatusText(){
   const summary=backupSummary();
   if(!summary.plants) return '登録データはありません';
   const meta=loadBackupMeta();
-  const counts=`${summary.plants}株・履歴${summary.logs}件・写真${summary.photos}枚`;
+  const counts=`${summary.plants}株・履歴${summary.logs}件・予定${summary.plans}件・写真${summary.photos}枚`;
   if(!meta.lastBackupAt) return `未バックアップ　${counts}`;
   return `最終保存 ${fmtDate(meta.lastBackupAt)}　${counts}`;
 }
@@ -236,4 +254,3 @@ $('restorePreImportBtn').onclick=()=>{
     alert('復元前データを読み込めませんでした。');
   }
 };
-

@@ -10,8 +10,8 @@
 <link rel="apple-touch-icon" sizes="180x180" href="./apple-touch-icon.png">
 <link rel="icon" type="image/png" href="./apple-touch-icon.png">
 <title>塊根植物記録</title>
-<script src="./js/analytics.js?v=1.5.1"></script>
-<link rel="stylesheet" href="./css/styles.css?v=1.5.1">
+<script src="./js/analytics.js?v=1.6.0"></script>
+<link rel="stylesheet" href="./css/styles.css?v=1.6.0">
 </head>
 <body>
 <div class="wrap">
@@ -135,9 +135,10 @@
       <div class="help-section-body">
         <p>水やり、薬剤散布、植え替え、施肥、状態・写真記録に対応しています。</p>
         <p>植物カードの「水やり」は、通常の水やり・液肥なしとしてすぐに記録します。詳しい内容を残す場合は「＋ ケアを記録」を使用してください。</p>
-        <p>「＋ ケアを記録」の記録日時を変更すると、昨日など過去のケアを登録できます。未来の日時は通常の履歴として登録できません。</p>
+        <p>「＋ ケアを記録」の記録日時を変更すると、昨日など過去のケアを登録できます。未来の日時は「予定」として登録してください。</p>
         <p>過去の記録は植物の詳細画面下部にある「履歴を見る」から確認・編集・削除できます。</p>
-        <p>カレンダーで今日以前の日を選び、「この日のケアを追加」から登録することもできます。</p>
+        <p>植物の詳細画面下部にある「予定を管理」では、1回だけの予定と、日・週・月単位の繰り返し予定を登録・編集・削除できます。間隔を2にすると隔日・隔週・隔月になります。</p>
+        <p>カレンダーで今日以前の日を選ぶと履歴を、未来の日を選ぶと予定を追加できます。</p>
       </div>
     </details>
     <details class="help-section">
@@ -161,6 +162,7 @@
       <summary>天気・降水量</summary>
       <div class="help-section-body">
         <p>右上メニューの「天気・位置設定」で現在地を設定すると、降水量をカレンダーに表示できます。雨が当たる株を選び、降雨を水やりとして記録することもできます。</p>
+        <p>当日の降水量には予報が含まれる可能性があります。実際に雨が当たったことを確認した株だけを選択してください。</p>
       </div>
     </details>
     <details class="help-section">
@@ -305,9 +307,26 @@
       <option>施肥</option>
       <option>状態・写真記録</option>
     </select>
-    <label>記録日時</label>
+    <label id="careDateLabel">記録日時</label>
     <div class="date-field"><input id="careRecordedAt" type="datetime-local"></div>
-    <div class="hint">記録を忘れた場合は、実際にケアした過去の日時へ変更できます。</div>
+    <div id="careDateHint" class="hint">記録を忘れた場合は、実際にケアした過去の日時へ変更できます。</div>
+    <div id="recurrenceFields" class="recurrence-fields" hidden>
+      <label>繰り返し</label>
+      <select id="recurrenceUnit">
+        <option value="none">繰り返さない</option>
+        <option value="day">日単位</option>
+        <option value="week">週単位</option>
+        <option value="month">月単位</option>
+      </select>
+      <div id="recurrenceIntervalFields" hidden>
+        <label>間隔</label>
+        <div class="recurrence-interval-row">
+          <input id="recurrenceInterval" type="number" min="1" max="365" value="1" inputmode="numeric">
+          <span id="recurrenceIntervalUnit">日おき</span>
+        </div>
+      </div>
+      <div id="recurrenceSummary" class="hint">この日時に1回だけ予定します。</div>
+    </div>
     <div id="waterFields" class="care-fields">
       <label>水やり方法</label>
       <select id="waterType">
@@ -372,10 +391,12 @@
       <input id="trunkWidth" inputmode="decimal" placeholder="例：4.5cm">
       <label>葉数（任意）</label>
       <input id="leafCount" inputmode="numeric" placeholder="例：18枚">
-      <label>写真（任意）</label>
-      <input id="carePhoto" type="file" accept="image/*">
-      <div class="hint">写真は保存容量を抑えるため自動で縮小・圧縮します。</div>
-      <img id="photoPreview" class="photo-preview" alt="選択した写真のプレビュー">
+      <div id="carePhotoFields">
+        <label>写真（任意）</label>
+        <input id="carePhoto" type="file" accept="image/*">
+        <div class="hint">写真は保存容量を抑えるため自動で縮小・圧縮します。</div>
+        <img id="photoPreview" class="photo-preview" alt="選択した写真のプレビュー">
+      </div>
     </div>
     <label>メモ（任意）</label>
     <textarea id="waterNote" placeholder="例：朝に灌水、植え替え後の状態良好"></textarea>
@@ -394,6 +415,17 @@
   </div>
 </dialog>
 
+<dialog id="plansDialog">
+  <div class="modal">
+    <div class="plans-header">
+      <h2 id="plansTitle">ケア予定</h2>
+      <button class="secondary" id="addPlan">＋ 予定を追加</button>
+    </div>
+    <div id="plansList"></div>
+    <div class="actions"><button id="closePlans">閉じる</button></div>
+  </div>
+</dialog>
+
 <dialog id="plantDetailsDialog">
   <div class="modal">
     <div id="plantDetailsContent"></div>
@@ -405,6 +437,7 @@
     <div class="detail-management">
       <div class="detail-management-title">この株の管理</div>
       <div class="detail-management-actions">
+        <button class="secondary" id="plansPlantDetails">予定を管理</button>
         <button class="secondary" id="historyPlantDetails">履歴を見る</button>
         <button class="secondary" id="shortcutPlantDetails">水やりショートカットURLをコピー</button>
         <button class="danger" id="deletePlantDetails">この株を削除</button>
@@ -433,7 +466,7 @@
 
 <dialog id="calendarCarePlantDialog">
   <div class="modal">
-    <h2>過去のケアを追加</h2>
+    <h2 id="calendarCarePlantTitle">ケアを追加</h2>
     <div id="calendarCareDateText" class="hint"></div>
     <label>植物を選択</label>
     <select id="calendarCarePlant"></select>
@@ -478,10 +511,10 @@
   </div>
 </dialog>
 
-<script src="./js/storage.js?v=1.5.1"></script>
-<script src="./js/ui.js?v=1.5.1"></script>
-<script src="./js/calendar.js?v=1.5.1"></script>
-<script src="./js/weather.js?v=1.5.1"></script>
-<script src="./js/app.js?v=1.5.1"></script>
+<script src="./js/storage.js?v=1.6.0"></script>
+<script src="./js/ui.js?v=1.6.0"></script>
+<script src="./js/calendar.js?v=1.6.0"></script>
+<script src="./js/weather.js?v=1.6.0"></script>
+<script src="./js/app.js?v=1.6.0"></script>
 </body>
 </html>

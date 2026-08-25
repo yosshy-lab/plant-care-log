@@ -44,6 +44,35 @@ function careTimeForDate(date){
   return new Date(`${date}T12:00:00`).getTime();
 }
 
+function scheduleTimeForDate(date){
+  const now=new Date();
+  const candidate=new Date(`${date}T09:00:00`);
+  if(candidate.getTime()>now.getTime()) return candidate.getTime();
+  return now.getTime()+60*60*1000;
+}
+
+function planDateTimeValue(id){
+  const value=$(id).value;
+  const timestamp=value?new Date(value).getTime():NaN;
+  if(!Number.isFinite(timestamp)){
+    alert('予定日時を入力してください');
+    return null;
+  }
+  if(timestamp<=Date.now()){
+    alert('予定日時には現在より後の日時を入力してください。過去のケアは履歴として記録できます。');
+    return null;
+  }
+  return timestamp;
+}
+
+function recurrenceText(recurrence={unit:'none',interval:1}){
+  const interval=Math.max(1,Number(recurrence.interval) || 1);
+  if(recurrence.unit==='day') return interval===1?'毎日':`${interval}日おき`;
+  if(recurrence.unit==='week') return interval===1?'毎週':interval===2?'隔週':`${interval}週間おき`;
+  if(recurrence.unit==='month') return interval===1?'毎月':interval===2?'隔月':`${interval}か月おき`;
+  return '1回のみ';
+}
+
 function elapsed(ts){
   if(!ts) return {main:'未記録',sub:'最初のケアを記録してください'};
   const diff=Date.now()-ts;
@@ -250,6 +279,11 @@ $('historyPlantDetails').onclick=()=>{
   $('plantDetailsDialog').close();
   showHistory(id);
 };
+$('plansPlantDetails').onclick=()=>{
+  const id=detailPlantId;
+  $('plantDetailsDialog').close();
+  showPlans(id);
+};
 $('shortcutPlantDetails').onclick=()=>{
   const id=detailPlantId;
   $('plantDetailsDialog').close();
@@ -424,6 +458,8 @@ function toggleCareFields(){
 }
 
 let editingLogIndex=null;
+let editingPlanId=null;
+let careMode='record';
 let editingCarePhoto='';
 
 function resetCareForm(){
@@ -438,9 +474,21 @@ function resetCareForm(){
   $('carePhoto').value='';
   $('careRecordedAt').value=toDateTimeLocal();
   $('careRecordedAt').max=toDateTimeLocal();
+  $('recurrenceUnit').value='none';
+  $('recurrenceInterval').value='1';
   editingCarePhoto='';
   $('photoPreview').src='';
   $('photoPreview').style.display='none';
+}
+
+function updateRecurrenceFields(){
+  const unit=$('recurrenceUnit').value;
+  const interval=Math.max(1,Number($('recurrenceInterval').value) || 1);
+  $('recurrenceIntervalFields').hidden=unit==='none';
+  $('recurrenceIntervalUnit').textContent=unit==='day'?'日おき':unit==='week'?'週間おき':'か月おき';
+  $('recurrenceSummary').textContent=unit==='none'
+    ?'この日時に1回だけ予定します。'
+    :`${recurrenceText({unit,interval})}、同じケアを予定として表示します。`;
 }
 
 function compressImage(file){
@@ -473,15 +521,26 @@ window.openCare=(id,options={})=>{
   const p=data.plants.find(x=>String(x.id)===String(id));
   if(!p) return;
   if(plantManagementStatus(p)==='ended') return toast('管理終了した株には記録できません');
+  careMode=options.mode==='plan'?'plan':'record';
   editingLogIndex=Number.isInteger(options.logIndex)?options.logIndex:null;
+  editingPlanId=options.planId===undefined || options.planId===null?null:String(options.planId);
   resetCareForm();
-  const existing=editingLogIndex===null?null:p.logs?.[editingLogIndex];
+  const existing=careMode==='plan'
+    ?(p.plans || []).find(plan=>String(plan.id)===editingPlanId)
+    :(editingLogIndex===null?null:p.logs?.[editingLogIndex]);
+  $('recurrenceFields').hidden=careMode!=='plan';
+  $('carePhotoFields').hidden=careMode==='plan';
+  $('careDateLabel').textContent=careMode==='plan'?'予定日時':'記録日時';
+  $('careDateHint').textContent=careMode==='plan'
+    ?'開始日時と繰り返し間隔を指定してください。月末に存在しない日付は、その月の末日に予定します。'
+    :'記録を忘れた場合は、実際にケアした過去の日時へ変更できます。';
+  $('careRecordedAt').max=careMode==='plan'?'':toDateTimeLocal();
   if(existing){
     const details=existing.details || {};
-    $('careTitle').textContent=`${p.name} のケア記録を編集`;
+    $('careTitle').textContent=careMode==='plan'?`${p.name} のケア予定を編集`:`${p.name} のケア記録を編集`;
     $('saveCare').textContent='変更を保存';
     $('careType').value=existing.care || '水やり';
-    $('careRecordedAt').value=toDateTimeLocal(existing.time);
+    $('careRecordedAt').value=toDateTimeLocal(careMode==='plan'?existing.startAt:existing.time);
     $('waterType').value=existing.type || 'たっぷり灌水';
     $('fertilizer').value=existing.fertilizer || 'なし';
     $('waterAmount').value=details.waterAmount || '';
@@ -502,21 +561,31 @@ window.openCare=(id,options={})=>{
     $('trunkWidth').value=details.trunkWidth || '';
     $('leafCount').value=details.leafCount || '';
     $('waterNote').value=existing.note || '';
-    editingCarePhoto=existing.photo || '';
+    editingCarePhoto=careMode==='record'?(existing.photo || ''):'';
+    if(careMode==='plan'){
+      $('recurrenceUnit').value=existing.recurrence?.unit || 'none';
+      $('recurrenceInterval').value=String(existing.recurrence?.interval || 1);
+    }
     if(editingCarePhoto){
       $('photoPreview').src=editingCarePhoto;
       $('photoPreview').style.display='block';
     }
   }else{
-    $('careTitle').textContent=`${p.name} のケア記録`;
-    $('saveCare').textContent='記録する';
+    $('careTitle').textContent=careMode==='plan'?`${p.name} のケア予定`:`${p.name} のケア記録`;
+    $('saveCare').textContent=careMode==='plan'?'予定を保存':'記録する';
     $('careType').value='水やり';
-    if(options.date) $('careRecordedAt').value=toDateTimeLocal(careTimeForDate(options.date));
+    if(options.date) $('careRecordedAt').value=toDateTimeLocal(
+      careMode==='plan'?scheduleTimeForDate(options.date):careTimeForDate(options.date)
+    );
+    else if(careMode==='plan') $('careRecordedAt').value=toDateTimeLocal(Date.now()+60*60*1000);
   }
+  updateRecurrenceFields();
   toggleCareFields();
   $('careDialog').showModal();
 };
 $('careType').onchange=toggleCareFields;
+$('recurrenceUnit').onchange=updateRecurrenceFields;
+$('recurrenceInterval').oninput=updateRecurrenceFields;
 $('carePhoto').onchange=()=>{
   const file=$('carePhoto').files[0];
   if(!file){
@@ -532,7 +601,7 @@ $('cancelCare').onclick=()=> $('careDialog').close();
 $('saveCare').onclick=async()=>{
   const p=data.plants.find(x=>String(x.id)===String(currentId));
   const care=$('careType').value;
-  const recordedAt=recordedAtValue('careRecordedAt');
+  const recordedAt=careMode==='plan'?planDateTimeValue('careRecordedAt'):recordedAtValue('careRecordedAt');
   if(recordedAt===null) return;
   if(care==='薬剤散布' && !$('pesticideName').value.trim()) return alert('薬剤名を入力してください');
   if(care==='施肥' && !$('fertilizerName').value.trim()) return alert('肥料名を入力してください');
@@ -560,7 +629,7 @@ $('saveCare').onclick=async()=>{
 
   let photo=care==='状態・写真記録'?editingCarePhoto:'';
   const photoFile=$('carePhoto').files[0];
-  if(care==='状態・写真記録' && photoFile){
+  if(careMode==='record' && care==='状態・写真記録' && photoFile){
     const normalLabel=editingLogIndex===null?'記録する':'変更を保存';
     $('saveCare').disabled=true;
     $('saveCare').textContent='写真を処理中…';
@@ -581,6 +650,34 @@ $('saveCare').onclick=async()=>{
     note:$('waterNote').value.trim(),
     photo
   };
+  if(careMode==='plan'){
+    if(!Array.isArray(p.plans)) p.plans=[];
+    const recurrence={
+      unit:$('recurrenceUnit').value,
+      interval:Math.max(1,Math.min(365,Number($('recurrenceInterval').value) || 1))
+    };
+    const plan={
+      ...log,
+      id:editingPlanId || `${Date.now()}-${Math.random().toString(36).slice(2,8)}`,
+      startAt:recordedAt,
+      recurrence,
+      createdAt:Date.now()
+    };
+    delete plan.time;
+    delete plan.photo;
+    const previousPlans=[...p.plans];
+    const existingIndex=p.plans.findIndex(item=>String(item.id)===String(editingPlanId));
+    if(existingIndex>=0) p.plans[existingIndex]={...p.plans[existingIndex],...plan,createdAt:p.plans[existingIndex].createdAt || plan.createdAt};
+    else p.plans.push(plan);
+    p.plans.sort((a,b)=>Number(a.startAt)-Number(b.startAt));
+    if(save()){
+      $('careDialog').close();
+      toast(existingIndex>=0?'予定を変更しました':'予定を登録しました');
+      trackPlantCareEvent(existingIndex>=0?'care_plan_edited':'care_plan_created',{care_type:care,recurrence:recurrence.unit});
+      showPlans(p.id);
+    }else p.plans=previousPlans;
+    return;
+  }
   const wasEditing=editingLogIndex!==null;
   const previousLogs=[...(p.logs || [])];
   if(wasEditing) p.logs[editingLogIndex]=log;
@@ -650,6 +747,45 @@ window.showHistory=id=>{
   $('historyDialog').showModal();
 };
 $('closeHistory').onclick=()=> $('historyDialog').close();
+
+function showPlans(id){
+  const p=data.plants.find(x=>String(x.id)===String(id));
+  if(!p) return;
+  currentId=p.id;
+  const plans=[...(p.plans || [])].sort((a,b)=>Number(a.startAt)-Number(b.startAt));
+  $('plansTitle').textContent=`${p.name} のケア予定`;
+  $('addPlan').disabled=plantManagementStatus(p)==='ended';
+  $('plansList').innerHTML=plans.length?plans.map(plan=>`
+    <div class="plan-item">
+      <div class="history-title">${fmtDate(plan.startAt)} ・ ${esc(plan.care || '水やり')}</div>
+      <div class="plan-repeat">${esc(recurrenceText(plan.recurrence))}</div>
+      <div class="history-note">${careDetailHtml(plan)}</div>
+      <div class="history-actions">
+        <button class="secondary" type="button" onclick="editPlan('${p.id}','${esc(String(plan.id))}')">編集</button>
+        <button class="danger" type="button" onclick="removePlan('${p.id}','${esc(String(plan.id))}')">削除</button>
+      </div>
+    </div>`).join(''):'<div class="empty">予定はまだありません。</div>';
+  $('plansDialog').showModal();
+}
+window.showPlans=showPlans;
+$('closePlans').onclick=()=> $('plansDialog').close();
+$('addPlan').onclick=()=>{
+  const id=currentId;
+  $('plansDialog').close();
+  openCare(id,{mode:'plan'});
+};
+window.editPlan=(id,planId)=>{
+  $('plansDialog').close();
+  openCare(id,{mode:'plan',planId});
+};
+window.removePlan=(id,planId)=>{
+  if(!confirm('このケア予定を削除しますか？')) return;
+  const p=data.plants.find(x=>String(x.id)===String(id));
+  if(!p) return;
+  p.plans=(p.plans || []).filter(plan=>String(plan.id)!==String(planId));
+  save();
+  showPlans(id);
+};
 
 let reorderDraft=[];
 
@@ -726,16 +862,19 @@ function openBatchWatering(context=null){
     return;
   }
   batchWaterContext=context && context.rainDate?context:null;
+  const todayRain=Boolean(batchWaterContext?.today);
   $('batchWaterTitle').textContent=batchWaterContext?'降雨を水やりとして記録':'まとめて水やり';
   $('batchWaterHint').textContent=batchWaterContext
-    ?`${batchWaterContext.rainDate} の降雨 ${Number(batchWaterContext.rainAmount).toFixed(1)}mm。雨が当たる設定の株を選択しています。`
+    ?todayRain
+      ?`${batchWaterContext.rainDate} の降水予報 ${Number(batchWaterContext.rainAmount).toFixed(1)}mm。当日の値には予報が含まれる可能性があります。実際に雨が当たった株だけを選択してください。`
+      :`${batchWaterContext.rainDate} の降雨 ${Number(batchWaterContext.rainAmount).toFixed(1)}mm。雨が当たる設定の株を選択しています。`
     :'水やりした株を選択してください。記録を忘れた場合は日時を過去へ変更できます。';
-  const batchTime=batchWaterContext?new Date(`${batchWaterContext.rainDate}T12:00:00`).getTime():Date.now();
+  const batchTime=batchWaterContext?(todayRain?Date.now():new Date(`${batchWaterContext.rainDate}T12:00:00`).getTime()):Date.now();
   $('batchWaterTime').value=toDateTimeLocal(batchTime);
   $('batchWaterTime').max=toDateTimeLocal();
   $('batchWaterTime').disabled=Boolean(batchWaterContext);
   $('batchWaterTimeHint').textContent=batchWaterContext
-    ?'降雨記録は選択日の正午として保存します。'
+    ?todayRain?'現在時刻で保存します。予報値ではなく、実際の降雨を確認してから記録してください。':'降雨記録は選択日の正午として保存します。'
     :'実際に水やりした日時を指定できます。';
   $('batchPlantList').innerHTML=availablePlants.map(p=>`
     <label class="batch-plant-row">
@@ -749,7 +888,11 @@ function openBatchWatering(context=null){
   $('batchWaterDialog').showModal();
 }
 
-window.openRainWatering=(date,amount)=>openBatchWatering({rainDate:date,rainAmount:Number(amount)});
+window.openRainWatering=(date,amount)=>openBatchWatering({
+  rainDate:date,
+  rainAmount:Number(amount),
+  today:date===dateKey(new Date())
+});
 
 $('batchPlantList').onchange=updateBatchWaterControls;
 $('batchSelectAll').onclick=()=>{
@@ -769,7 +912,7 @@ $('saveBatchWater').onclick=()=>{
   if(!selectedIds.size) return;
 
   const context=batchWaterContext;
-  const now=context?new Date(`${context.rainDate}T12:00:00`).getTime():recordedAtValue('batchWaterTime');
+  const now=context?(context.today?Date.now():new Date(`${context.rainDate}T12:00:00`).getTime()):recordedAtValue('batchWaterTime');
   if(now===null) return;
   const additions=[];
   let skipped=0;
@@ -777,7 +920,7 @@ $('saveBatchWater').onclick=()=>{
     if(!selectedIds.has(String(p.id))) return;
     if(!Array.isArray(p.logs)) p.logs=[];
     const duplicate=context
-      ?p.logs.some(log=>dateKey(new Date(log.time))===context.rainDate && String(log.note || '').startsWith('降雨 '))
+      ?p.logs.some(log=>dateKey(new Date(log.time))===context.rainDate && /^(降雨|当日降水) /.test(String(log.note || '')))
       :p.logs.some(log=>Math.abs(now-Number(log.time))<=10000);
     if(duplicate){
       skipped++;
@@ -788,7 +931,9 @@ $('saveBatchWater').onclick=()=>{
       care:'水やり',
       type:'通常',
       fertilizer:'なし',
-      note:context?`降雨 ${Number(context.rainAmount).toFixed(1)}mmを水やり扱いとして記録`:'まとめて水やりから記録'
+      note:context
+        ?`${context.today?'当日降水':'降雨'} ${Number(context.rainAmount).toFixed(1)}mmを水やり扱いとして記録${context.today?'（予報を含む可能性あり）':''}`
+        :'まとめて水やりから記録'
     };
     p.logs.unshift(log);
     p.logs.sort((a,b)=>b.time-a.time);
@@ -947,4 +1092,3 @@ function autoRecordFromUrl(){
   history.replaceState({},'',location.pathname);
   setTimeout(()=>toast(`💧 ${p.name} の水やりを記録しました`),100);
 }
-

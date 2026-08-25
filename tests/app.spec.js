@@ -25,7 +25,7 @@ test('主要画面がJavaScriptエラーなく表示される', async ({ page })
   page.on('pageerror', error => errors.push(error.message));
   await page.goto('/');
   await expect(page).toHaveTitle('塊根植物記録');
-  await expect(page.locator('#appVersionDisplay')).toHaveText('v1.5.1');
+  await expect(page.locator('#appVersionDisplay')).toHaveText('v1.6.0');
   await expect(page.locator('#addBtn')).toBeVisible();
   await expect(page.locator('#plantSearch')).toBeVisible();
   await expect(page.locator('#calendarViewBtn')).toBeVisible();
@@ -159,13 +159,13 @@ test('バックアップに件数とバージョン情報を含めて保存す�
   expect(payload).toMatchObject({
     format: 'plant-care-log-backup',
     schemaVersion: 1,
-    appVersion: '1.5.1'
+    appVersion: '1.6.0'
   });
   expect(payload.plants).toHaveLength(3);
 
   await page.locator('#menuBtn').click();
   await expect(page.locator('#backupStatus')).toContainText('最終保存');
-  await expect(page.locator('#backupStatus')).toContainText('3株・履歴1件・写真1枚');
+  await expect(page.locator('#backupStatus')).toContainText('3株・履歴1件・予定0件・写真1枚');
 });
 
 test('復元前に自動退避し、復元を取り消せる', async ({ page }) => {
@@ -328,4 +328,118 @@ test('カレンダーで選択した過去日にケアを追加する', async ({
   expect(recorded.getFullYear()).toBe(2026);
   expect(recorded.getMonth()).toBe(7);
   expect(recorded.getDate()).toBe(20);
+});
+
+test('当日の降水予報を注意表示付きで水やりとして記録する', async ({ page }) => {
+  await seed(page, [{ ...plants[0], rainExposure: 'rain', logs: [] }]);
+  await page.addInitScript(() => {
+    const now = new Date();
+    const pad = value => String(value).padStart(2, '0');
+    const today = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+    localStorage.setItem('plant-care-weather-v1', JSON.stringify({
+      latitude: null,
+      longitude: null,
+      cityName: '藤沢市',
+      displayThreshold: 1,
+      equivalentThreshold: 10,
+      days: { [today]: 12.4 },
+      lastUpdated: Date.now()
+    }));
+  });
+  await page.goto('/');
+  await page.locator('#calendarViewBtn').click();
+  await expect(page.locator('#calendarDayDetails')).toContainText('降水予報 12.4mm（藤沢市）');
+  await expect(page.locator('#calendarDayDetails')).toContainText('予報が含まれる可能性');
+  await page.getByRole('button', { name: '現在までの雨を水やり扱いにする' }).click();
+  await expect(page.locator('#batchWaterHint')).toContainText('実際に雨が当たった株だけ');
+  await page.locator('#saveBatchWater').click();
+
+  const saved = await page.evaluate(key => JSON.parse(localStorage.getItem(key)), storageKey);
+  expect(saved.plants[0].logs).toHaveLength(1);
+  expect(saved.plants[0].logs[0].note).toContain('当日降水 12.4mm');
+  expect(saved.plants[0].logs[0].note).toContain('予報を含む可能性あり');
+});
+
+test('未来の単発ケア予定を登録してカレンダーに表示する', async ({ page }) => {
+  await seed(page, [{ ...plants[0], plans: [], logs: [] }]);
+  await page.goto('/');
+  await page.locator('.plant-card').click();
+  await page.locator('#plansPlantDetails').click();
+  await page.locator('#addPlan').click();
+  await expect(page.locator('#careTitle')).toContainText('ケア予定');
+  await page.locator('#careType').selectOption({ label: '施肥' });
+  await page.locator('#careRecordedAt').fill('2099-01-15T09:00');
+  await page.locator('#fertilizerName').fill('ハイポネックス');
+  await page.locator('#saveCare').click();
+
+  await expect(page.locator('#plansDialog')).toBeVisible();
+  await expect(page.locator('#plansList')).toContainText('1回のみ');
+  const saved = await page.evaluate(key => JSON.parse(localStorage.getItem(key)), storageKey);
+  expect(saved.plants[0].plans).toHaveLength(1);
+  expect(saved.plants[0].plans[0]).toMatchObject({
+    care: '施肥',
+    recurrence: { unit: 'none', interval: 1 }
+  });
+
+  await page.locator('#closePlans').click();
+  await page.locator('#calendarViewBtn').click();
+  await page.evaluate(() => window.selectCalendarDate('2099-01-15'));
+  await expect(page.locator('#calendarDayDetails')).toContainText('グラキリス・施肥予定');
+  await expect(page.locator('#calendarDayDetails')).toContainText('ハイポネックス');
+});
+
+test('隔週の予定を該当日だけカレンダーに表示する', async ({ page }) => {
+  const plan = {
+    id: 'biweekly',
+    startAt: new Date('2099-01-01T09:00').getTime(),
+    care: '水やり',
+    type: '通常',
+    fertilizer: 'なし',
+    details: {},
+    note: '',
+    recurrence: { unit: 'week', interval: 2 }
+  };
+  await seed(page, [{ ...plants[0], plans: [plan], logs: [] }]);
+  await page.goto('/');
+  await page.locator('#calendarViewBtn').click();
+  await page.evaluate(() => window.selectCalendarDate('2099-01-15'));
+  await expect(page.locator('#calendarDayDetails')).toContainText('グラキリス・水やり予定');
+  await expect(page.locator('#calendarDayDetails')).toContainText('隔週');
+
+  await page.evaluate(() => window.selectCalendarDate('2099-01-08'));
+  await expect(page.locator('#calendarDayDetails')).not.toContainText('グラキリス・水やり予定');
+});
+
+test('隔月の予定を該当月だけカレンダーに表示する', async ({ page }) => {
+  const plan = {
+    id: 'bimonthly',
+    startAt: new Date('2099-01-31T09:00').getTime(),
+    care: '薬剤散布',
+    type: '薬剤散布',
+    fertilizer: 'なし',
+    details: { name: 'テスト薬剤' },
+    note: '',
+    recurrence: { unit: 'month', interval: 2 }
+  };
+  await seed(page, [{ ...plants[0], plans: [plan], logs: [] }]);
+  await page.goto('/');
+  await page.locator('#calendarViewBtn').click();
+  await page.evaluate(() => window.selectCalendarDate('2099-03-31'));
+  await expect(page.locator('#calendarDayDetails')).toContainText('グラキリス・薬剤散布予定');
+  await expect(page.locator('#calendarDayDetails')).toContainText('隔月');
+
+  await page.evaluate(() => window.selectCalendarDate('2099-02-28'));
+  await expect(page.locator('#calendarDayDetails')).not.toContainText('グラキリス・薬剤散布予定');
+});
+
+test('未来日のカレンダーから予定登録画面を開ける', async ({ page }) => {
+  await seed(page, [{ ...plants[0], plans: [], logs: [] }]);
+  await page.goto('/');
+  await page.locator('#calendarViewBtn').click();
+  await page.evaluate(() => window.selectCalendarDate('2099-05-10'));
+  await expect(page.locator('#addCareForDateBtn')).toHaveText('＋ この日の予定を追加');
+  await page.locator('#addCareForDateBtn').click();
+  await expect(page.locator('#careTitle')).toContainText('ケア予定');
+  await expect(page.locator('#careRecordedAt')).toHaveValue(/^2099-05-10T/);
+  await expect(page.locator('#recurrenceFields')).toBeVisible();
 });

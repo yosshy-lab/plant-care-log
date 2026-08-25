@@ -34,6 +34,26 @@ function renderCalendarFilters(){
   if([...select.options].some(o=>o.value===current)) select.value=current;
 }
 
+function planOccursOnDate(plan,date){
+  const start=new Date(Number(plan.startAt));
+  const target=new Date(`${date}T00:00:00`);
+  const startDate=new Date(start.getFullYear(),start.getMonth(),start.getDate());
+  if(!Number.isFinite(start.getTime()) || target<startDate) return false;
+  const recurrence=plan.recurrence || {unit:'none',interval:1};
+  const interval=Math.max(1,Number(recurrence.interval) || 1);
+  if(recurrence.unit==='none') return dateKey(start)===date;
+  const dayDiff=Math.round((target-startDate)/86400000);
+  if(recurrence.unit==='day') return dayDiff%interval===0;
+  if(recurrence.unit==='week') return dayDiff%(7*interval)===0;
+  if(recurrence.unit==='month'){
+    const monthDiff=(target.getFullYear()-start.getFullYear())*12+target.getMonth()-start.getMonth();
+    if(monthDiff<0 || monthDiff%interval!==0) return false;
+    const lastDay=new Date(target.getFullYear(),target.getMonth()+1,0).getDate();
+    return target.getDate()===Math.min(start.getDate(),lastDay);
+  }
+  return false;
+}
+
 function calendarEventsFor(date){
   const plantId=$('calendarPlantFilter').value;
   const careFilter=$('calendarCareFilter').value;
@@ -48,8 +68,15 @@ function calendarEventsFor(date){
         events.push({plant:p,log,care,planned:true});
       }
     });
+    (p.plans || []).forEach(plan=>{
+      const care=plan.care || '水やり';
+      if((!careFilter || care===careFilter) && planOccursOnDate(plan,date)){
+        events.push({plant:p,log:plan,care,planned:true,carePlan:true});
+      }
+    });
   });
-  return events.sort((a,b)=>Number(a.planned)-Number(b.planned) || b.log.time-a.log.time);
+  return events.sort((a,b)=>Number(a.planned)-Number(b.planned) ||
+    Number(b.log.time || b.log.startAt)-Number(a.log.time || a.log.startAt));
 }
 
 function renderCalendar(){
@@ -93,16 +120,24 @@ function renderCalendar(){
 function renderCalendarDayDetails(){
   const events=calendarEventsFor(selectedCalendarDate);
   const rain=rainfallForDate(selectedCalendarDate);
-  const isPast=selectedCalendarDate<dateKey(new Date());
+  const today=dateKey(new Date());
+  const isToday=selectedCalendarDate===today;
+  const canRecordRain=selectedCalendarDate<=today;
   const equivalent=rain!==null && rain>=Number(weather.equivalentThreshold);
   const date=new Date(`${selectedCalendarDate}T00:00:00`);
   const title=new Intl.DateTimeFormat('ja-JP',{month:'long',day:'numeric',weekday:'short'}).format(date);
   const rainHtml=rain===null?'':`<div class="calendar-entry rain-entry">
     <div class="entry-title">☔ ${rainLabelForDate(selectedCalendarDate)} ${rain.toFixed(1)}mm${weatherCitySuffix()}</div>
-    <div class="entry-meta">${equivalent?'水やり相当候補です。雨が当たる株を選んで記録できます。':'設定した水やり相当量には達していません。'}</div>
-    ${equivalent && isPast?`<button class="rain-action" onclick="openRainWatering('${selectedCalendarDate}',${rain})">雨を水やり扱いにする</button>`:''}
+    <div class="entry-meta">${equivalent
+      ?isToday?'水やり相当候補です。当日の値には予報が含まれる可能性があります。実際に雨が当たった株だけを選んでください。':'水やり相当候補です。雨が当たる株を選んで記録できます。'
+      :'設定した水やり相当量には達していません。'}</div>
+    ${equivalent && canRecordRain?`<button class="rain-action" onclick="openRainWatering('${selectedCalendarDate}',${rain})">${isToday?'現在までの雨を水やり扱いにする':'雨を水やり扱いにする'}</button>`:''}
   </div>`;
   const careHtml=events.length?events.map(event=>{
+    if(event.carePlan){
+      return `<div class="calendar-entry"><div class="entry-title">⏰ ${esc(event.plant.name)}・${esc(event.care)}予定</div>
+        <div class="entry-meta">${careDetailHtml(event.log)}<br>${esc(recurrenceText(event.log.recurrence))}</div></div>`;
+    }
     if(event.planned){
       return `<div class="calendar-entry"><div class="entry-title">⏰ ${esc(event.plant.name)}・薬剤散布予定</div>
         <div class="entry-meta">薬剤：${esc(event.log.details?.name || '未入力')} ／ 対象：${esc(event.log.details?.target || '未入力')}</div></div>`;
@@ -110,9 +145,9 @@ function renderCalendarDayDetails(){
     return `<div class="calendar-entry"><div class="entry-title">${esc(event.plant.name)}・${esc(event.care)}</div>
       <div class="entry-meta">${careDetailHtml(event.log)}</div>${photoHtml(event.log.photo)}</div>`;
   }).join(''):(rain===null?'<div class="empty">この日の記録・予定はありません。</div>':'');
-  const canAdd=selectedCalendarDate<=dateKey(new Date());
-  const addCareHtml=canAdd && data.plants.some(plant=>plantManagementStatus(plant)!=='ended')
-    ?`<button id="addCareForDateBtn" class="calendar-add-care" type="button" onclick="openCalendarCare('${selectedCalendarDate}')">＋ この日のケアを追加</button>`
+  const isFuture=selectedCalendarDate>dateKey(new Date());
+  const addCareHtml=data.plants.some(plant=>plantManagementStatus(plant)!=='ended')
+    ?`<button id="addCareForDateBtn" class="calendar-add-care" type="button" onclick="openCalendarCare('${selectedCalendarDate}')">＋ この日の${isFuture?'予定':'ケア'}を追加</button>`
     :'';
   $('calendarDayDetails').innerHTML=`<h3>${title}</h3>${addCareHtml}${rainHtml}${careHtml}`;
 }
@@ -124,12 +159,14 @@ window.openCalendarCare=date=>{
   if(!plants.length) return toast('ケアを記録できる株がありません');
   const filteredId=$('calendarPlantFilter').value;
   const filteredPlant=plants.find(plant=>String(plant.id)===String(filteredId));
+  const mode=date>dateKey(new Date())?'plan':'record';
   if(filteredPlant || plants.length===1){
-    openCare((filteredPlant || plants[0]).id,{date});
+    openCare((filteredPlant || plants[0]).id,{date,mode});
     return;
   }
   calendarCareDate=date;
-  $('calendarCareDateText').textContent=`${date} に記録する株を選択してください。`;
+  $('calendarCarePlantTitle').textContent=mode==='plan'?'未来のケア予定を追加':'過去のケアを追加';
+  $('calendarCareDateText').textContent=`${date} に${mode==='plan'?'予定する':'記録する'}株を選択してください。`;
   $('calendarCarePlant').innerHTML=plants.map(plant=>`<option value="${esc(String(plant.id))}">${esc(plant.name)}</option>`).join('');
   $('calendarCarePlantDialog').showModal();
 };
@@ -137,7 +174,7 @@ $('cancelCalendarCare').onclick=()=> $('calendarCarePlantDialog').close();
 $('continueCalendarCare').onclick=()=>{
   const id=$('calendarCarePlant').value;
   $('calendarCarePlantDialog').close();
-  openCare(id,{date:calendarCareDate});
+  openCare(id,{date:calendarCareDate,mode:calendarCareDate>dateKey(new Date())?'plan':'record'});
 };
 
 window.selectCalendarDate=date=>{
@@ -183,4 +220,3 @@ $('todayBtn').onclick=()=>{
 };
 $('calendarPlantFilter').onchange=renderCalendar;
 $('calendarCareFilter').onchange=renderCalendar;
-
