@@ -72,6 +72,7 @@ test('株登録写真をIndexedDBへ保存しLocalStorageには画像本体を�
   await page.goto('/');
   await page.locator('#addBtn').click();
   await page.locator('#plantName').fill('写真テスト株');
+  await page.locator('#cultivationSection > summary').click();
   await page.locator('#plantPhoto').setInputFiles('apple-touch-icon.png');
   await expect(page.locator('#plantPhotoPreview')).toBeVisible();
   await page.locator('#savePlant').click();
@@ -142,6 +143,7 @@ test('状態・写真記録の写真もIndexedDBへ保存する', async ({ page 
   await page.locator('#carePhoto').setInputFiles('apple-touch-icon.png');
   await page.locator('#waterNote').fill('発葉を確認');
   await page.locator('#saveCare').click();
+  await expect(page.locator('#careDialog')).toBeHidden();
 
   const saved = await page.evaluate(key => JSON.parse(localStorage.getItem(key)), storageKey);
   expect(saved.plants[0].logs[0].photo).toBe('');
