@@ -10,8 +10,8 @@
 <link rel="apple-touch-icon" sizes="180x180" href="./apple-touch-icon.png">
 <link rel="icon" type="image/png" href="./apple-touch-icon.png">
 <title>塊根植物記録</title>
-<script src="./js/analytics.js?v=1.6.0"></script>
-<link rel="stylesheet" href="./css/styles.css?v=1.6.0">
+<script src="./js/analytics.js?v=1.7.0"></script>
+<link rel="stylesheet" href="./css/styles.css?v=1.7.0">
 </head>
 <body>
 <div class="wrap">
@@ -32,6 +32,7 @@
         <div class="menu-separator" role="separator"></div>
         <button id="weatherSettingsBtn" role="menuitem">天気・位置設定</button>
         <div class="menu-separator" role="separator"></div>
+        <div id="photoStorageStatus" class="menu-backup-status" role="status">写真ストレージを確認中…</div>
         <div id="backupStatus" class="menu-backup-status" role="status"></div>
         <button id="exportBtn" role="menuitem">バックアップを保存</button>
         <button id="importBtn" role="menuitem">バックアップから復元</button>
@@ -177,7 +178,8 @@
     <details class="help-section">
       <summary>データ保存・バックアップ</summary>
       <div class="help-section-body">
-        <p>植物情報、ケア履歴、写真はこの端末のブラウザ内に保存されます。端末の故障・変更やSafariのWebサイトデータ削除によって消える可能性があります。</p>
+        <p>植物情報とケア履歴はLocalStorage、写真はより大容量のIndexedDBへ保存されます。端末の故障・変更やSafariのWebサイトデータ削除によって消える可能性があります。</p>
+        <p>既存写真は更新後の初回起動時に自動移行されます。メニュー内で写真枚数、写真データ量、このサイト全体の使用量と端末が回答した推定上限を確認できます。上限は端末の空き容量やブラウザにより変化します。</p>
         <p>右上メニューの「バックアップを保存」から、定期的にJSONファイルを保存してください。最終保存日時と対象件数もメニュー内で確認できます。</p>
         <p>バックアップから復元する際は、ファイル内容を検証し、現在のデータを端末内へ自動退避します。「復元前のデータへ戻す」で取り消せます。</p>
         <div class="help-callout"><strong>大切な注意：</strong>Safariのタブと、ホーム画面から「Webアプリとして開く」場合では、保存データが別になることがあります。登録内容が見えないときは、元の画面でバックアップを保存してから、使いたい画面で復元してください。</div>
@@ -301,7 +303,7 @@
         <textarea id="plantMemo" placeholder="特徴や入手時の状態など"></textarea>
         <label>登録時の写真</label>
         <input id="plantPhoto" type="file" accept="image/*">
-        <div class="field-help">写真は端末内に保存され、バックアップにも含まれます。</div>
+        <div class="field-help">写真は端末内の写真ストレージへ圧縮保存され、バックアップにも含まれます。</div>
         <img id="plantPhotoPreview" class="plant-photo-preview" alt="登録写真のプレビュー">
         <button class="danger" id="removePlantPhoto" type="button" style="display:none;margin-top:8px;padding:8px 10px;font-size:12px">写真を削除</button>
       </div>
@@ -412,7 +414,7 @@
       <div id="carePhotoFields">
         <label>写真（任意）</label>
         <input id="carePhoto" type="file" accept="image/*">
-        <div class="hint">写真は保存容量を抑えるため自動で縮小・圧縮します。</div>
+        <div class="hint">写真は端末内の写真ストレージへ自動で縮小・圧縮して保存します。</div>
         <img id="photoPreview" class="photo-preview" alt="選択した写真のプレビュー">
       </div>
     </div>
@@ -529,10 +531,11 @@
   </div>
 </dialog>
 
-<script src="./js/storage.js?v=1.6.0"></script>
-<script src="./js/ui.js?v=1.6.0"></script>
-<script src="./js/calendar.js?v=1.6.0"></script>
-<script src="./js/weather.js?v=1.6.0"></script>
-<script src="./js/app.js?v=1.6.0"></script>
+<script src="./js/storage.js?v=1.7.0"></script>
+<script src="./js/photo-storage.js?v=1.7.0"></script>
+<script src="./js/ui.js?v=1.7.0"></script>
+<script src="./js/calendar.js?v=1.7.0"></script>
+<script src="./js/weather.js?v=1.7.0"></script>
+<script src="./js/app.js?v=1.7.0"></script>
 </body>
 </html>

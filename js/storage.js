@@ -1,4 +1,4 @@
-const APP_VERSION='1.6.0';
+const APP_VERSION='1.7.0';
 const KEY='plant-care-log-v1';
 const WEATHER_KEY='plant-care-weather-v1';
 const LIST_LAYOUT_KEY='plant-care-list-layout-v1';
@@ -36,6 +36,18 @@ function createBackupPayload(targetData=data){
     appVersion:APP_VERSION,
     exportedAt:Date.now(),
     plants:targetData.plants
+  };
+}
+
+function storageDataPayload(targetData=data){
+  const useIndexedDb=typeof photoStorageAvailable!=='undefined' && photoStorageAvailable;
+  if(!useIndexedDb) return targetData;
+  return {
+    plants:(targetData.plants || []).map(plant=>({
+      ...plant,
+      photo:'',
+      logs:(plant.logs || []).map(log=>({...log,photo:''}))
+    }))
   };
 }
 
@@ -121,7 +133,7 @@ let listLayout=localStorage.getItem(LIST_LAYOUT_KEY)==='grid'?'grid':'list';
 
 function save(){
   try{
-    localStorage.setItem(KEY, JSON.stringify(data));
+    localStorage.setItem(KEY, JSON.stringify(storageDataPayload(data)));
     render();
     renderBackupStatus();
     return true;
@@ -207,7 +219,7 @@ $('importFile').onchange=async()=>{
     )) return;
 
     try{
-      localStorage.setItem(PRE_RESTORE_KEY,JSON.stringify(createBackupPayload()));
+      await saveRestoreSnapshot(createBackupPayload());
     }catch(e){
       alert('復元前データを自動退避できませんでした。先に「バックアップを保存」を実行してから、もう一度お試しください。');
       return;
@@ -215,12 +227,23 @@ $('importFile').onchange=async()=>{
 
     const previous=data;
     data={plants:restored.plants};
+    if(typeof photoStorageAvailable!=='undefined' && photoStorageAvailable){
+      try{
+        await persistEmbeddedPhotos(data);
+        await hydrateStoredPhotos(data);
+      }catch(error){
+        data=previous;
+        throw error;
+      }
+    }
     if(save()){
+      await prunePhotoRecords(data);
+      updatePhotoStorageStatus();
       toast(`${incoming.plants}株・履歴${incoming.logs}件を復元しました`);
       trackPlantCareEvent('backup_restored');
     }else{
       data=previous;
-      localStorage.removeItem(PRE_RESTORE_KEY);
+      await clearRestoreSnapshot();
       render();
       renderBackupStatus();
     }
@@ -231,17 +254,28 @@ $('importFile').onchange=async()=>{
   }
 };
 
-$('restorePreImportBtn').onclick=()=>{
+$('restorePreImportBtn').onclick=async()=>{
   closeDataMenu();
   try{
-    const restorePoint=validateBackup(JSON.parse(localStorage.getItem(PRE_RESTORE_KEY) || 'null'));
+    const restorePoint=validateBackup(await loadRestoreSnapshot());
     const summary=backupSummary(restorePoint);
     if(!confirm(`復元前の${summary.plants}株・履歴${summary.logs}件へ戻しますか？\n現在のデータも復元ポイントとして入れ替えて保存します。`)) return;
     const current=createBackupPayload();
     const previous=data;
     data={plants:restorePoint.plants};
+    if(typeof photoStorageAvailable!=='undefined' && photoStorageAvailable){
+      try{
+        await persistEmbeddedPhotos(data);
+        await hydrateStoredPhotos(data);
+      }catch(error){
+        data=previous;
+        throw error;
+      }
+    }
     if(save()){
-      localStorage.setItem(PRE_RESTORE_KEY,JSON.stringify(current));
+      await prunePhotoRecords(data);
+      updatePhotoStorageStatus();
+      await saveRestoreSnapshot(current);
       renderBackupStatus();
       toast('復元前のデータへ戻しました');
       trackPlantCareEvent('backup_rollback');
@@ -250,7 +284,7 @@ $('restorePreImportBtn').onclick=()=>{
       render();
     }
   }catch(e){
-    localStorage.removeItem(PRE_RESTORE_KEY);
+    await clearRestoreSnapshot();
     renderBackupStatus();
     alert('復元前データを読み込めませんでした。');
   }

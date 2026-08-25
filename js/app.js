@@ -1,7 +1,11 @@
-autoRecordFromUrl();
-render();
-renderBackupStatus();
-initializeReleaseNotes();
-notifyBackupDue();
-refreshStoredMunicipality();
-refreshWeather();
+(async()=>{
+  await initializePhotoStorage();
+  autoRecordFromUrl();
+  render();
+  renderBackupStatus();
+  initializeReleaseNotes();
+  updatePhotoStorageStatus();
+  notifyBackupDue();
+  refreshStoredMunicipality();
+  refreshWeather();
+})();

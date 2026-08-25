@@ -25,7 +25,7 @@ test('主要画面がJavaScriptエラーなく表示される', async ({ page })
   page.on('pageerror', error => errors.push(error.message));
   await page.goto('/');
   await expect(page).toHaveTitle('塊根植物記録');
-  await expect(page.locator('#appVersionDisplay')).toHaveText('v1.6.0');
+  await expect(page.locator('#appVersionDisplay')).toHaveText('v1.7.0');
   await expect(page.locator('#addBtn')).toBeVisible();
   await expect(page.locator('#plantSearch')).toBeVisible();
   await expect(page.locator('#calendarViewBtn')).toBeVisible();
@@ -36,8 +36,8 @@ test('更新案内は新バージョンの初回だけ表示しメニューか�
   await seed(page);
   await page.goto('/');
   await expect(page.locator('#releaseNotice')).toBeVisible();
-  await expect(page.locator('#releaseNotice')).toContainText('v1.6.0 更新');
-  await expect(page.locator('#releaseNotice')).toContainText('ケア予定と当日降雨記録に対応');
+  await expect(page.locator('#releaseNotice')).toContainText('v1.7.0 更新');
+  await expect(page.locator('#releaseNotice')).toContainText('写真保存をIndexedDBへ移行');
 
   await page.reload();
   await expect(page.locator('#releaseNotice')).toBeHidden();
@@ -45,7 +45,7 @@ test('更新案内は新バージョンの初回だけ表示しメニューか�
   await page.locator('#menuBtn').click();
   await page.locator('#releaseNotesBtn').click();
   await expect(page.locator('#releaseNotesDialog')).toBeVisible();
-  await expect(page.locator('#releaseNotesList')).toContainText('v1.6.0');
+  await expect(page.locator('#releaseNotesList')).toContainText('v1.7.0');
   await expect(page.locator('#releaseNotesList')).toContainText('隔週・隔月');
   await expect(page.locator('#releaseNotesList')).toContainText('v1.0.0');
 });
@@ -65,6 +65,100 @@ test('植物を登録し、保存後も表示できる', async ({ page }) => {
   await expect(card).toContainText('休眠中');
   await page.reload();
   await expect(page.locator('.plant-card', { hasText: 'テスト実生' })).toBeVisible();
+});
+
+test('株登録写真をIndexedDBへ保存しLocalStorageには画像本体を残さない', async ({ page }) => {
+  await seed(page);
+  await page.goto('/');
+  await page.locator('#addBtn').click();
+  await page.locator('#plantName').fill('写真テスト株');
+  await page.locator('#plantPhoto').setInputFiles('apple-touch-icon.png');
+  await expect(page.locator('#plantPhotoPreview')).toBeVisible();
+  await page.locator('#savePlant').click();
+
+  const saved = await page.evaluate(key => JSON.parse(localStorage.getItem(key)), storageKey);
+  expect(saved.plants[0].photo).toBe('');
+  expect(saved.plants[0].photoId).toBeTruthy();
+  const photo = await page.evaluate(async id => {
+    const db = await new Promise((resolve, reject) => {
+      const request = indexedDB.open('plant-care-log-media-v1', 2);
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    return new Promise((resolve, reject) => {
+      const request = db.transaction('photos', 'readonly').objectStore('photos').get(id);
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+  }, saved.plants[0].photoId);
+  expect(photo.dataUrl).toMatch(/^data:image\/jpeg;base64,/);
+  expect(photo.byteSize).toBeGreaterThan(0);
+
+  await page.reload();
+  await page.locator('.plant-card').click();
+  await expect(page.locator('.detail-photo')).toBeVisible();
+});
+
+test('LocalStorage内の既存写真を初回起動時にIndexedDBへ自動移行する', async ({ page }) => {
+  const legacyPhoto = 'data:image/jpeg;base64,AA==';
+  await seed(page, [{
+    ...plants[0],
+    photo: legacyPhoto,
+    logs: [{ time: Date.now() - 1000, care: '状態・写真記録', photo: legacyPhoto }]
+  }]);
+  await page.goto('/');
+  await expect(page.locator('.plant-card')).toBeVisible();
+
+  const result = await page.evaluate(async key => {
+    const saved = JSON.parse(localStorage.getItem(key));
+    const db = await new Promise((resolve, reject) => {
+      const request = indexedDB.open('plant-care-log-media-v1', 2);
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    const records = await new Promise((resolve, reject) => {
+      const request = db.transaction('photos', 'readonly').objectStore('photos').getAll();
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    return { saved, records };
+  }, storageKey);
+
+  expect(result.saved.plants[0].photo).toBe('');
+  expect(result.saved.plants[0].logs[0].photo).toBe('');
+  expect(result.saved.plants[0].photoId).toBeTruthy();
+  expect(result.saved.plants[0].logs[0].photoId).toBeTruthy();
+  expect(result.records).toHaveLength(2);
+
+  await page.locator('#menuBtn').click();
+  await expect(page.locator('#photoStorageStatus')).toContainText('写真 2枚');
+});
+
+test('状態・写真記録の写真もIndexedDBへ保存する', async ({ page }) => {
+  await seed(page, [{ ...plants[0], logs: [] }]);
+  await page.goto('/');
+  await page.locator('.care').click();
+  await page.locator('#careType').selectOption({ label: '状態・写真記録' });
+  await page.locator('#carePhoto').setInputFiles('apple-touch-icon.png');
+  await page.locator('#waterNote').fill('発葉を確認');
+  await page.locator('#saveCare').click();
+
+  const saved = await page.evaluate(key => JSON.parse(localStorage.getItem(key)), storageKey);
+  expect(saved.plants[0].logs[0].photo).toBe('');
+  expect(saved.plants[0].logs[0].photoId).toBeTruthy();
+  const stored = await page.evaluate(async id => {
+    const db = await new Promise((resolve, reject) => {
+      const request = indexedDB.open('plant-care-log-media-v1', 2);
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    return new Promise((resolve, reject) => {
+      const request = db.transaction('photos', 'readonly').objectStore('photos').get(id);
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+  }, saved.plants[0].logs[0].photoId);
+  expect(stored.dataUrl).toMatch(/^data:image\/jpeg;base64,/);
 });
 
 test('検索・生育区分・管理状態で絞り込める', async ({ page }) => {
@@ -177,9 +271,10 @@ test('バックアップに件数とバージョン情報を含めて保存す�
   expect(payload).toMatchObject({
     format: 'plant-care-log-backup',
     schemaVersion: 1,
-    appVersion: '1.6.0'
+    appVersion: '1.7.0'
   });
   expect(payload.plants).toHaveLength(3);
+  expect(payload.plants[0].photo).toBe('data:image/jpeg;base64,AA==');
 
   await page.locator('#menuBtn').click();
   await expect(page.locator('#backupStatus')).toContainText('最終保存');

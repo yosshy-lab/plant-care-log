@@ -13,6 +13,15 @@ function esc(s=''){
 
 const RELEASE_NOTES=[
   {
+    version:'1.7.0',date:'2026年8月25日',title:'写真保存をIndexedDBへ移行',
+    items:[
+      '既存写真を、より大容量の写真ストレージへ初回起動時に自動移行します。',
+      '株登録写真と状態・写真記録をIndexedDBへ保存するように変更しました。',
+      'メニュー内で写真枚数とブラウザの使用容量・容量目安を確認できます。',
+      'バックアップと復元では、これまでどおり写真を含めて移行できます。'
+    ]
+  },
+  {
     version:'1.6.0',date:'2026年8月25日',title:'ケア予定と当日降雨記録に対応',
     items:[
       '単発または日・週・月単位の繰り返しケア予定を登録できるようになりました。',
@@ -361,6 +370,8 @@ $('deletePlantDetails').onclick=()=>{
 
 let editingPlantId=null;
 let editingPlantPhoto='';
+let editingPlantPhotoId='';
+let editingPlantPhotoChanged=false;
 
 const PLANT_FIELD_IDS=[
   'plantName','plantType','plantAcquiredDate','plantSource','plantPrice',
@@ -391,6 +402,8 @@ function resetPlantForm(){
   $('cultivationSection').open=false;
   $('plantRecordMeta').hidden=true;
   setPlantPhotoPreview('');
+  editingPlantPhotoId='';
+  editingPlantPhotoChanged=false;
   togglePlantConditionalFields();
 }
 
@@ -423,6 +436,7 @@ window.openPlantEditor=id=>{
   $('plantLocation').value=p.location || '';
   $('plantRainExposure').value=p.rainExposure || 'rain';
   $('plantMemo').value=p.memo || '';
+  editingPlantPhotoId=p.photoId || '';
   setPlantPhotoPreview(p.photo || '');
   $('acquisitionSection').open=Boolean(p.acquiredDate || p.acquisitionMethod || p.source || p.price || p.origin);
   $('cultivationSection').open=Boolean(p.sowingDate || p.germinationDate || p.location || p.memo || p.photo || p.rainExposure==='sheltered');
@@ -442,6 +456,7 @@ $('plantPhoto').onchange=async()=>{
   if(!file) return;
   try{
     setPlantPhotoPreview(await compressImage(file));
+    editingPlantPhotoChanged=true;
   }catch(e){
     alert(e.message);
     $('plantPhoto').value='';
@@ -450,12 +465,24 @@ $('plantPhoto').onchange=async()=>{
 $('removePlantPhoto').onclick=()=>{
   $('plantPhoto').value='';
   setPlantPhotoPreview('');
+  editingPlantPhotoChanged=true;
 };
 $('cancelPlant').onclick=()=> $('plantDialog').close();
-$('savePlant').onclick=()=>{
+$('savePlant').onclick=async()=>{
   const name=$('plantName').value.trim();
   if(!name) return alert('管理名を入力してください');
   const now=Date.now();
+  const previousPhotoId=editingPlantPhotoId;
+  let photoId=previousPhotoId;
+  if(editingPlantPhotoChanged && photoStorageAvailable){
+    try{
+      photoId=editingPlantPhoto?await savePhotoData(editingPlantPhoto,null,'plant-photo'):'';
+    }catch(error){
+      alert('写真を保存できませんでした。端末の空き容量を確認して、もう一度お試しください。');
+      return;
+    }
+  }
+  if(editingPlantPhotoChanged && !editingPlantPhoto) photoId='';
   const details={
     name,
     stage:$('plantStage').value,
@@ -472,6 +499,7 @@ $('savePlant').onclick=()=>{
     rainExposure:$('plantRainExposure').value,
     memo:$('plantMemo').value.trim(),
     photo:editingPlantPhoto,
+    photoId,
     updatedAt:now
   };
   if(editingPlantId!==null){
@@ -480,10 +508,13 @@ $('savePlant').onclick=()=>{
     const previous={...p};
     Object.assign(p,details);
     if(save()){
+      if(previousPhotoId && previousPhotoId!==photoId) await deletePhotoRecord(previousPhotoId);
+      updatePhotoStorageStatus();
       $('plantDialog').close();
       toast('株情報を更新しました');
       trackPlantCareEvent('plant_updated');
     }else{
+      if(photoId && photoId!==previousPhotoId) await deletePhotoRecord(photoId);
       Object.assign(p,previous);
       render();
     }
@@ -492,14 +523,17 @@ $('savePlant').onclick=()=>{
       id:crypto.randomUUID(),
       ...details,
       createdAt:now,
-      logs:[]
+      logs:[],
+      plans:[]
     };
     data.plants.push(newPlant);
     if(save()){
+      updatePhotoStorageStatus();
       $('plantDialog').close();
       toast('植物を登録しました');
       trackPlantCareEvent('plant_added');
     }else{
+      if(photoId) await deletePhotoRecord(photoId);
       data.plants=data.plants.filter(p=>p!==newPlant);
       render();
     }
@@ -524,6 +558,7 @@ let editingLogIndex=null;
 let editingPlanId=null;
 let careMode='record';
 let editingCarePhoto='';
+let editingCarePhotoId='';
 
 function resetCareForm(){
   ['waterAmount','pesticideName','pesticideTarget','pesticideDilution','pesticideNextDate',
@@ -540,6 +575,7 @@ function resetCareForm(){
   $('recurrenceUnit').value='none';
   $('recurrenceInterval').value='1';
   editingCarePhoto='';
+  editingCarePhotoId='';
   $('photoPreview').src='';
   $('photoPreview').style.display='none';
 }
@@ -625,6 +661,7 @@ window.openCare=(id,options={})=>{
     $('leafCount').value=details.leafCount || '';
     $('waterNote').value=existing.note || '';
     editingCarePhoto=careMode==='record'?(existing.photo || ''):'';
+    editingCarePhotoId=careMode==='record'?(existing.photoId || ''):'';
     if(careMode==='plan'){
       $('recurrenceUnit').value=existing.recurrence?.unit || 'none';
       $('recurrenceInterval').value=String(existing.recurrence?.interval || 1);
@@ -711,7 +748,8 @@ $('saveCare').onclick=async()=>{
     fertilizer:care==='水やり' ? $('fertilizer').value : 'なし',
     details,
     note:$('waterNote').value.trim(),
-    photo
+    photo,
+    photoId:careMode==='record' && care==='状態・写真記録'?editingCarePhotoId:''
   };
   if(careMode==='plan'){
     if(!Array.isArray(p.plans)) p.plans=[];
@@ -728,6 +766,7 @@ $('saveCare').onclick=async()=>{
     };
     delete plan.time;
     delete plan.photo;
+    delete plan.photoId;
     const previousPlans=[...p.plans];
     const existingIndex=p.plans.findIndex(item=>String(item.id)===String(editingPlanId));
     if(existingIndex>=0) p.plans[existingIndex]={...p.plans[existingIndex],...plan,createdAt:p.plans[existingIndex].createdAt || plan.createdAt};
@@ -741,16 +780,29 @@ $('saveCare').onclick=async()=>{
     }else p.plans=previousPlans;
     return;
   }
+  const previousPhotoId=editingCarePhotoId;
+  if(care==='状態・写真記録' && photoFile && photoStorageAvailable){
+    try{ log.photoId=await savePhotoData(photo,null,'care-photo'); }
+    catch(error){
+      alert('写真を保存できませんでした。端末の空き容量を確認して、もう一度お試しください。');
+      return;
+    }
+  }
   const wasEditing=editingLogIndex!==null;
   const previousLogs=[...(p.logs || [])];
   if(wasEditing) p.logs[editingLogIndex]=log;
   else p.logs.push(log);
   p.logs.sort((a,b)=>b.time-a.time);
   if(save()){
+    if(previousPhotoId && previousPhotoId!==log.photoId) await deletePhotoRecord(previousPhotoId);
+    updatePhotoStorageStatus();
     $('careDialog').close();
     trackPlantCareEvent(wasEditing?'care_history_edited':'care_recorded',{care_type:care});
     if(wasEditing) showHistory(p.id);
-  }else p.logs=previousLogs;
+  }else{
+    if(log.photoId && log.photoId!==previousPhotoId) await deletePhotoRecord(log.photoId);
+    p.logs=previousLogs;
+  }
 };
 
 function careDetailHtml(l){
@@ -1038,11 +1090,18 @@ window.copyShortcutUrl=async id=>{
   }
 };
 
-window.removePlant=id=>{
+window.removePlant=async id=>{
   const p=data.plants.find(x=>x.id===id);
   if(confirm(`「${p.name}」を削除しますか？\nケア履歴も削除されます。`)){
+    const index=data.plants.indexOf(p);
     data.plants=data.plants.filter(x=>x.id!==id);
-    save();
+    if(save()){
+      await Promise.all([p.photoId,...(p.logs || []).map(log=>log.photoId)].filter(Boolean).map(deletePhotoRecord));
+      updatePhotoStorageStatus();
+    }else{
+      data.plants.splice(index,0,p);
+      render();
+    }
   }
 };
 window.editLog=(id,index)=>{
@@ -1050,11 +1109,19 @@ window.editLog=(id,index)=>{
   openCare(id,{logIndex:index});
 };
 
-window.removeLog=(id,index)=>{
+window.removeLog=async(id,index)=>{
   if(!confirm('このケア記録を削除しますか？')) return;
   const p=data.plants.find(x=>x.id===id);
-  p.logs.splice(index,1);
-  save();
+  const [removed]=p.logs.splice(index,1);
+  if(save()){
+    if(removed?.photoId){
+      await deletePhotoRecord(removed.photoId);
+      updatePhotoStorageStatus();
+    }
+  }else{
+    p.logs.splice(index,0,removed);
+    render();
+  }
   showHistory(id);
 };
 
@@ -1063,6 +1130,7 @@ $('menuBtn').onclick=e=>{
   const willOpen=$('dataMenu').hidden;
   $('dataMenu').hidden=!willOpen;
   $('menuBtn').setAttribute('aria-expanded',String(willOpen));
+  if(willOpen) updatePhotoStorageStatus();
 };
 
 $('helpBtn').onclick=()=>{
@@ -1152,7 +1220,7 @@ function autoRecordFromUrl(){
       fertilizer:'なし',
       note:'iPhoneショートカットから自動記録'
     });
-    localStorage.setItem(KEY, JSON.stringify(data));
+    localStorage.setItem(KEY, JSON.stringify(storageDataPayload(data)));
   }
 
   history.replaceState({},'',location.pathname);
