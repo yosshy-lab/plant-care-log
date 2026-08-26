@@ -25,24 +25,45 @@ test('主要画面がJavaScriptエラーなく表示される', async ({ page })
   page.on('pageerror', error => errors.push(error.message));
   await page.goto('/');
   await expect(page).toHaveTitle('塊根植物記録');
-  await expect(page.locator('#appVersionDisplay')).toHaveText('v1.8.0');
+  await expect(page.locator('#appVersionDisplay')).toHaveText('v1.8.1');
   await expect(page.locator('#addBtn')).toBeVisible();
   await expect(page.locator('#plantSearch')).toBeVisible();
   await expect(page.locator('#calendarViewBtn')).toBeVisible();
   expect(errors).toEqual([]);
 });
 
+test('主要操作を同じ幅の横一列で表示し予定画面を開ける', async ({ page }) => {
+  await seed(page, [plants[0]]);
+  await page.goto('/');
+  const selectors=['#addBtn','#topBatchWaterBtn','#topBatchPlanBtn','#topRemindersBtn'];
+  const buttons=selectors.map(selector=>page.locator(selector));
+  for(const button of buttons) await expect(button).toBeVisible();
+
+  const boxes=await Promise.all(buttons.map(button=>button.boundingBox()));
+  expect(boxes.every(Boolean)).toBe(true);
+  expect(Math.max(...boxes.map(box=>box.y))-Math.min(...boxes.map(box=>box.y))).toBeLessThanOrEqual(1);
+  expect(Math.max(...boxes.map(box=>box.width))-Math.min(...boxes.map(box=>box.width))).toBeLessThanOrEqual(1);
+  const fit=await page.locator('.toolbar button').evaluateAll(elements=>elements.every(element=>element.scrollWidth<=element.clientWidth+1));
+  expect(fit).toBe(true);
+
+  await page.locator('#topBatchPlanBtn').click();
+  await expect(page.locator('#batchPlanDialog')).toBeVisible();
+  await page.locator('#cancelBatchPlan').click();
+  await page.locator('#topRemindersBtn').click();
+  await expect(page.locator('#remindersDialog')).toBeVisible();
+});
+
 test('更新案内は新バージョンの初回だけ表示しメニューから再確認できる', async ({ page }) => {
   await seed(page);
   await page.goto('/');
   await expect(page.locator('#releaseNotice')).toBeVisible();
-  await expect(page.locator('#releaseNotice')).toContainText('v1.8.0 更新');
-  await expect(page.locator('#releaseNotice')).toContainText('備忘録・まとめて予定を追加');
+  await expect(page.locator('#releaseNotice')).toContainText('v1.8.1 更新');
+  await expect(page.locator('#releaseNotice')).toContainText('主要操作を画面上部へ集約');
 
   await page.locator('#releaseNoticeDetails').click();
   await expect(page.locator('#releaseNotesDialog')).toBeVisible();
-  await expect(page.locator('#releaseNotesList')).toContainText('v1.8.0');
-  await expect(page.locator('#releaseNotesList')).not.toContainText('v1.7.0');
+  await expect(page.locator('#releaseNotesList')).toContainText('v1.8.1');
+  await expect(page.locator('#releaseNotesList')).not.toContainText('v1.8.0');
   await expect(page.locator('#releaseNotesHint')).toContainText('今回のアップデート内容');
   await page.locator('#closeReleaseNotes').click();
 
@@ -52,6 +73,7 @@ test('更新案内は新バージョンの初回だけ表示しメニューか�
   await page.locator('#menuBtn').click();
   await page.locator('#releaseNotesBtn').click();
   await expect(page.locator('#releaseNotesDialog')).toBeVisible();
+  await expect(page.locator('#releaseNotesList')).toContainText('v1.8.1');
   await expect(page.locator('#releaseNotesList')).toContainText('v1.8.0');
   await expect(page.locator('#releaseNotesList')).toContainText('v1.7.0');
   await expect(page.locator('#releaseNotesList')).toContainText('隔週・隔月');
@@ -289,7 +311,7 @@ test('バックアップに件数とバージョン情報を含めて保存す�
   expect(payload).toMatchObject({
     format: 'plant-care-log-backup',
     schemaVersion: 1,
-    appVersion: '1.8.0'
+    appVersion: '1.8.1'
   });
   expect(payload.plants).toHaveLength(3);
   expect(payload.reminders).toEqual([reminder]);

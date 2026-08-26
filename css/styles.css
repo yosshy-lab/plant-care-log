@@ -42,7 +42,14 @@ h1{font-size:24px;margin:4px 0 4px}
 .menu-version strong{color:#4b5563;font-weight:750}
 .analytics-choice{display:flex;align-items:flex-start;gap:10px;margin:12px 0;color:var(--text);font-size:14px;line-height:1.5}
 .analytics-choice input{width:auto;flex:none;margin:3px 0 0}
-.toolbar{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
+.toolbar{
+  display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin-bottom:14px
+}
+.toolbar button{
+  display:flex;align-items:center;justify-content:center;min-width:0;min-height:48px;
+  padding:10px 2px;font-size:clamp(8px,2.45vw,13px);line-height:1.2;
+  letter-spacing:-.03em;text-align:center;white-space:nowrap
+}
 .release-notice{
   display:flex;align-items:center;justify-content:space-between;gap:12px;
   margin:0 0 12px;padding:11px 12px;border:1px solid #bfdbfe;border-radius:14px;
@@ -80,6 +87,8 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .care{background:var(--accent)}
 .quick-water{background:#0e7490}
 .top-batch-water{background:#0e7490}
+.top-batch-plan{background:#2563eb}
+.top-reminders{background:#7c3aed}
 .list-layout-toolbar{display:flex;justify-content:flex-end;margin:-4px 0 10px}
 .plant-filters{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr) minmax(0,1fr);gap:7px;margin-bottom:8px}
 .plant-filters input,.plant-filters select{margin:0}

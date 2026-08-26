@@ -13,6 +13,15 @@ function esc(s=''){
 
 const RELEASE_NOTES=[
   {
+    version:'1.8.1',date:'2026年8月26日',title:'主要操作を画面上部へ集約',
+    items:[
+      '「まとめてケア予定」と「備忘録・予定」を画面上部から直接開けるようになりました。',
+      '主要な4つの操作ボタンを、同じ幅・等間隔の横一列へ整理しました。',
+      'スマートフォンの画面幅に合わせて、ボタンの文字サイズを自動調整します。',
+      '従来どおり、右上メニューからも予定機能を利用できます。'
+    ]
+  },
+  {
     version:'1.8.0',date:'2026年8月26日',title:'備忘録・まとめて予定を追加',
     items:[
       '液肥や作業予定などを、株を選ばずに登録できるようになりました。',
@@ -1040,6 +1049,7 @@ function openBatchPlanning(){
 }
 
 $('batchPlanBtn').onclick=openBatchPlanning;
+$('topBatchPlanBtn').onclick=openBatchPlanning;
 $('batchPlanPlantList').onchange=updateBatchPlanControls;
 $('batchPlanSelectAll').onclick=()=>{
   const checks=[...document.querySelectorAll('.batch-plan-plant-check')];

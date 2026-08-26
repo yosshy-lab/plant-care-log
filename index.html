@@ -10,8 +10,8 @@
 <link rel="apple-touch-icon" sizes="180x180" href="./apple-touch-icon.png">
 <link rel="icon" type="image/png" href="./apple-touch-icon.png">
 <title>塊根植物記録</title>
-<script src="./js/analytics.js?v=1.8.0"></script>
-<link rel="stylesheet" href="./css/styles.css?v=1.8.0">
+<script src="./js/analytics.js?v=1.8.1"></script>
+<link rel="stylesheet" href="./css/styles.css?v=1.8.1">
 </head>
 <body>
 <div class="wrap">
@@ -56,8 +56,10 @@
   </aside>
 
   <div class="toolbar">
-    <button id="addBtn">＋ 植物を追加</button>
-    <button class="top-batch-water" id="topBatchWaterBtn">💧 まとめて水やり</button>
+    <button id="addBtn">＋植物を追加</button>
+    <button class="top-batch-water" id="topBatchWaterBtn">まとめて水やり</button>
+    <button class="top-batch-plan" id="topBatchPlanBtn">まとめてケア予定</button>
+    <button class="top-reminders" id="topRemindersBtn">備忘録・予定</button>
   </div>
   <input id="importFile" type="file" accept="application/json,.json" hidden>
 
@@ -151,8 +153,8 @@
         <p>「＋ ケアを記録」の記録日時を変更すると、昨日など過去のケアを登録できます。未来の日時は「予定」として登録してください。</p>
         <p>過去の記録は植物の詳細画面下部にある「履歴を見る」から確認・編集・削除できます。</p>
         <p>植物の詳細画面下部にある「予定を管理」では、1回だけの予定と、日・週・月単位の繰り返し予定を登録・編集・削除できます。間隔を2にすると隔日・隔週・隔月になります。</p>
-        <p>同じケア予定を複数株へ登録する場合は、右上メニューの「まとめてケア予定」で対象株を選択してください。ケア内容、予定日時、メモ、繰り返し周期を1回入力すると、選択した全株へ登録されます。</p>
-        <p>株に紐づかない予定は、右上メニューの「備忘録・予定」から登録できます。液肥や遮光変更などの予定名、日時、メモ、繰り返し間隔を設定するとカレンダーへ表示されます。</p>
+        <p>同じケア予定を複数株へ登録する場合は、画面上部または右上メニューの「まとめてケア予定」で対象株を選択してください。ケア内容、予定日時、メモ、繰り返し周期を1回入力すると、選択した全株へ登録されます。</p>
+        <p>株に紐づかない予定は、画面上部または右上メニューの「備忘録・予定」から登録できます。液肥や遮光変更などの予定名、日時、メモ、繰り返し間隔を設定するとカレンダーへ表示されます。</p>
         <p>カレンダーで今日以前の日を選ぶと履歴を、未来の日を選ぶと予定を追加できます。</p>
       </div>
     </details>
@@ -596,12 +598,12 @@
   </div>
 </dialog>
 
-<script src="./js/storage.js?v=1.8.0"></script>
-<script src="./js/photo-storage.js?v=1.8.0"></script>
-<script src="./js/ui.js?v=1.8.0"></script>
-<script src="./js/reminders.js?v=1.8.0"></script>
-<script src="./js/calendar.js?v=1.8.0"></script>
-<script src="./js/weather.js?v=1.8.0"></script>
-<script src="./js/app.js?v=1.8.0"></script>
+<script src="./js/storage.js?v=1.8.1"></script>
+<script src="./js/photo-storage.js?v=1.8.1"></script>
+<script src="./js/ui.js?v=1.8.1"></script>
+<script src="./js/reminders.js?v=1.8.1"></script>
+<script src="./js/calendar.js?v=1.8.1"></script>
+<script src="./js/weather.js?v=1.8.1"></script>
+<script src="./js/app.js?v=1.8.1"></script>
 </body>
 </html>
