@@ -72,7 +72,11 @@ const RELEASE_NOTES=[
 
 function openReleaseNotes(source='menu'){
   closeDataMenu();
-  $('releaseNotesList').innerHTML=RELEASE_NOTES.map((release,index)=>`
+  const releases=source==='notice'?RELEASE_NOTES.slice(0,1):RELEASE_NOTES;
+  $('releaseNotesHint').textContent=source==='notice'
+    ?'今回のアップデート内容です。過去の更新情報は右上メニューから確認できます。'
+    :'塊根植物記録の主な変更内容です。';
+  $('releaseNotesList').innerHTML=releases.map((release,index)=>`
     <section class="release-note-item${index===0?' latest':''}">
       <div class="release-note-heading">
         <strong>v${esc(release.version)}</strong><span>${esc(release.date)}</span>

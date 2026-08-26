@@ -39,6 +39,13 @@ test('更新案内は新バージョンの初回だけ表示しメニューか�
   await expect(page.locator('#releaseNotice')).toContainText('v1.8.0 更新');
   await expect(page.locator('#releaseNotice')).toContainText('備忘録・まとめて予定を追加');
 
+  await page.locator('#releaseNoticeDetails').click();
+  await expect(page.locator('#releaseNotesDialog')).toBeVisible();
+  await expect(page.locator('#releaseNotesList')).toContainText('v1.8.0');
+  await expect(page.locator('#releaseNotesList')).not.toContainText('v1.7.0');
+  await expect(page.locator('#releaseNotesHint')).toContainText('今回のアップデート内容');
+  await page.locator('#closeReleaseNotes').click();
+
   await page.reload();
   await expect(page.locator('#releaseNotice')).toBeHidden();
 
@@ -46,6 +53,7 @@ test('更新案内は新バージョンの初回だけ表示しメニューか�
   await page.locator('#releaseNotesBtn').click();
   await expect(page.locator('#releaseNotesDialog')).toBeVisible();
   await expect(page.locator('#releaseNotesList')).toContainText('v1.8.0');
+  await expect(page.locator('#releaseNotesList')).toContainText('v1.7.0');
   await expect(page.locator('#releaseNotesList')).toContainText('隔週・隔月');
   await expect(page.locator('#releaseNotesList')).toContainText('v1.0.0');
 });
