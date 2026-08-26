@@ -32,6 +32,19 @@ test('主要画面がJavaScriptエラーなく表示される', async ({ page })
   expect(errors).toEqual([]);
 });
 
+test('SNS共有用のOGP画像とメタ情報を配信する', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.locator('meta[property="og:title"]')).toHaveAttribute('content', '塊根植物記録｜日々是塊根植物');
+  await expect(page.locator('meta[property="og:url"]')).toHaveAttribute('content', 'https://hibikorekaikon.github.io/plant-care-log/');
+  await expect(page.locator('meta[property="og:image"]')).toHaveAttribute('content', 'https://yosshy-lab.github.io/plant-care-log/og-image.jpg');
+  await expect(page.locator('meta[name="twitter:card"]')).toHaveAttribute('content', 'summary_large_image');
+
+  const response=await page.request.get('/og-image.jpg');
+  expect(response.ok()).toBe(true);
+  expect(response.headers()['content-type']).toContain('image/jpeg');
+  expect((await response.body()).byteLength).toBeGreaterThan(100_000);
+});
+
 test('主要操作を同じ幅の横一列で表示し予定画面を開ける', async ({ page }) => {
   await seed(page, [plants[0]]);
   await page.goto('/');
