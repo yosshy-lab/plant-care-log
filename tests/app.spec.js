@@ -41,8 +41,9 @@ test('SNS共有用のOGP画像とメタ情報を配信する', async ({ page }) 
 
   const response=await page.request.get('/og-image.jpg');
   expect(response.ok()).toBe(true);
-  expect(response.headers()['content-type']).toContain('image/jpeg');
-  expect((await response.body()).byteLength).toBeGreaterThan(100_000);
+  const image=await response.body();
+  expect([...image.subarray(0,3)]).toEqual([0xff,0xd8,0xff]);
+  expect(image.byteLength).toBeGreaterThan(100_000);
 });
 
 test('主要操作を同じ幅の横一列で表示し予定画面を開ける', async ({ page }) => {
