@@ -37,7 +37,7 @@ test('更新案内は新バージョンの初回だけ表示しメニューか�
   await page.goto('/');
   await expect(page.locator('#releaseNotice')).toBeVisible();
   await expect(page.locator('#releaseNotice')).toContainText('v1.8.0 更新');
-  await expect(page.locator('#releaseNotice')).toContainText('株に紐づかない備忘録・予定を追加');
+  await expect(page.locator('#releaseNotice')).toContainText('備忘録・まとめて予定を追加');
 
   await page.reload();
   await expect(page.locator('#releaseNotice')).toBeHidden();
@@ -566,6 +566,46 @@ test('未来日のカレンダーから予定登録画面を開ける', async ({
   await expect(page.locator('#careTitle')).toContainText('ケア予定');
   await expect(page.locator('#careRecordedAt')).toHaveValue(/^2099-05-10T/);
   await expect(page.locator('#recurrenceFields')).toBeVisible();
+});
+
+test('選択した複数株へ同じケア予定をまとめて登録する', async ({ page }) => {
+  await seed(page, plants.map(plant => ({ ...plant, plans: [], logs: [] })));
+  await page.goto('/');
+  await page.locator('#menuBtn').click();
+  await page.locator('#batchPlanBtn').click();
+  await expect(page.locator('#batchPlanDialog')).toBeVisible();
+  await expect(page.locator('.batch-plan-plant-check')).toHaveCount(2);
+  await page.locator('#batchPlanSelectAll').click();
+  await page.locator('#continueBatchPlan').click();
+
+  await expect(page.locator('#careTitle')).toContainText('2株のケア予定');
+  await page.locator('#careType').selectOption({ label: '施肥' });
+  await page.locator('#careRecordedAt').fill('2099-01-01T09:00');
+  await page.locator('#fertilizerName').fill('ハイポネックス');
+  await page.locator('#fertilizerAmount').fill('2000倍');
+  await page.locator('#recurrenceUnit').selectOption('month');
+  await page.locator('#recurrenceInterval').fill('2');
+  await page.locator('#waterNote').fill('生育期のみ実施');
+  await page.locator('#saveCare').click();
+  await expect(page.locator('#careDialog')).toBeHidden();
+
+  const saved = await page.evaluate(key => JSON.parse(localStorage.getItem(key)), storageKey);
+  expect(saved.plants[0].plans).toHaveLength(1);
+  expect(saved.plants[1].plans).toHaveLength(1);
+  expect(saved.plants[2].plans).toHaveLength(0);
+  expect(saved.plants[0].plans[0]).toMatchObject({
+    care: '施肥',
+    note: '生育期のみ実施',
+    recurrence: { unit: 'month', interval: 2 },
+    details: { name: 'ハイポネックス', amount: '2000倍' }
+  });
+  expect(saved.plants[0].plans[0].id).not.toBe(saved.plants[1].plans[0].id);
+
+  await page.locator('#calendarViewBtn').click();
+  await page.evaluate(() => window.selectCalendarDate('2099-03-01'));
+  await expect(page.locator('#calendarDayDetails')).toContainText('グラキリス・施肥予定');
+  await expect(page.locator('#calendarDayDetails')).toContainText('恵比寿大黒・施肥予定');
+  await expect(page.locator('#calendarDayDetails')).toContainText('隔月');
 });
 
 test('株を選ばず隔週の備忘録を登録してカレンダーに表示する', async ({ page }) => {
