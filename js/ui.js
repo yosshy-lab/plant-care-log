@@ -11,7 +11,50 @@ function esc(s=''){
   return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 }
 
+const THEME_KEY='plant-care-theme-v1';
+const THEME_LABELS={auto:'自動',light:'ライト',dark:'ダーク'};
+const systemDarkMode=window.matchMedia('(prefers-color-scheme: dark)');
+const isThemeMode=mode=>Object.prototype.hasOwnProperty.call(THEME_LABELS,mode);
+
+function savedThemeMode(){
+  try{
+    const mode=localStorage.getItem(THEME_KEY) || 'auto';
+    return isThemeMode(mode)?mode:'auto';
+  }catch(e){
+    return 'auto';
+  }
+}
+
+function applyTheme(mode,{persist=false}={}){
+  const selected=isThemeMode(mode)?mode:'auto';
+  const effective=selected==='auto'?(systemDarkMode.matches?'dark':'light'):selected;
+  document.documentElement.dataset.theme=effective;
+  $('themeColorMeta').content=effective==='dark'?'#0f172a':'#f3f4f6';
+  $('themeSettingsBtn').textContent=`表示テーマ：${THEME_LABELS[selected]}`;
+  if(persist){
+    try{ localStorage.setItem(THEME_KEY,selected); }catch(e){}
+  }
+}
+
+function initializeTheme(){
+  applyTheme(savedThemeMode());
+  const followSystemTheme=()=>{
+    if(savedThemeMode()==='auto') applyTheme('auto');
+  };
+  if(systemDarkMode.addEventListener) systemDarkMode.addEventListener('change',followSystemTheme);
+  else systemDarkMode.addListener(followSystemTheme);
+}
+
 const RELEASE_NOTES=[
+  {
+    version:'1.9.0',date:'2026年8月26日',title:'カレンダー編集と表示テーマを追加',
+    items:[
+      'カレンダー上の登録済みケアとケア予定を、その場で編集・削除できるようになりました。',
+      '右上メニューから「自動・ライト・ダーク」の表示テーマを選べるようになりました。',
+      '「自動」ではiPhoneやMacの外観設定へ連動し、選択内容は次回も維持されます。',
+      'ダーク表示でもカード、入力欄、カレンダー、各ダイアログが見やすくなるよう配色を調整しました。'
+    ]
+  },
   {
     version:'1.8.1',date:'2026年8月26日',title:'主要操作を画面上部へ集約',
     items:[
@@ -581,6 +624,7 @@ let editingLogIndex=null;
 let editingPlanId=null;
 let careMode='record';
 let batchPlanPlantIds=[];
+let careReturnTo='';
 let editingCarePhoto='';
 let editingCarePhotoId='';
 
@@ -646,6 +690,7 @@ window.openCare=(id,options={})=>{
   if(plantManagementStatus(p)==='ended') return toast('管理終了した株には記録できません');
   careMode=options.mode==='batch-plan'?'batch-plan':options.mode==='plan'?'plan':'record';
   batchPlanPlantIds=careMode==='batch-plan'?(options.plantIds || []).map(String):[];
+  careReturnTo=options.returnTo || '';
   const planning=careMode==='plan' || careMode==='batch-plan';
   editingLogIndex=Number.isInteger(options.logIndex)?options.logIndex:null;
   editingPlanId=options.planId===undefined || options.planId===null?null:String(options.planId);
@@ -725,6 +770,7 @@ $('carePhoto').onchange=()=>{
 };
 $('cancelCare').onclick=()=>{
   batchPlanPlantIds=[];
+  careReturnTo='';
   $('careDialog').close();
 };
 $('saveCare').onclick=async()=>{
@@ -838,7 +884,9 @@ $('saveCare').onclick=async()=>{
       $('careDialog').close();
       toast(existingIndex>=0?'予定を変更しました':'予定を登録しました');
       trackPlantCareEvent(existingIndex>=0?'care_plan_edited':'care_plan_created',{care_type:care,recurrence:recurrence.unit});
-      showPlans(p.id);
+      if(careReturnTo==='calendar') renderCalendar();
+      else showPlans(p.id);
+      careReturnTo='';
     }else p.plans=previousPlans;
     return;
   }
@@ -860,7 +908,11 @@ $('saveCare').onclick=async()=>{
     updatePhotoStorageStatus();
     $('careDialog').close();
     trackPlantCareEvent(wasEditing?'care_history_edited':'care_recorded',{care_type:care});
-    if(wasEditing) showHistory(p.id);
+    if(wasEditing){
+      if(careReturnTo==='calendar') renderCalendar();
+      else showHistory(p.id);
+    }
+    careReturnTo='';
   }else{
     if(log.photoId && log.photoId!==previousPhotoId) await deletePhotoRecord(log.photoId);
     p.logs=previousLogs;
@@ -951,17 +1003,23 @@ $('addPlan').onclick=()=>{
   $('plansDialog').close();
   openCare(id,{mode:'plan'});
 };
-window.editPlan=(id,planId)=>{
-  $('plansDialog').close();
-  openCare(id,{mode:'plan',planId});
+window.editPlan=(id,planId,returnTo='plans')=>{
+  if($('plansDialog').open) $('plansDialog').close();
+  openCare(id,{mode:'plan',planId,returnTo});
 };
-window.removePlan=(id,planId)=>{
-  if(!confirm('このケア予定を削除しますか？')) return;
+window.removePlan=(id,planId,returnTo='plans')=>{
+  if(!confirm('このケア予定を削除しますか？\n繰り返し予定の場合は、すべての予定が削除されます。')) return;
   const p=data.plants.find(x=>String(x.id)===String(id));
   if(!p) return;
-  p.plans=(p.plans || []).filter(plan=>String(plan.id)!==String(planId));
-  save();
-  showPlans(id);
+  const previousPlans=[...(p.plans || [])];
+  p.plans=previousPlans.filter(plan=>String(plan.id)!==String(planId));
+  if(save()){
+    if(returnTo==='calendar') renderCalendar();
+    else showPlans(id);
+  }else{
+    p.plans=previousPlans;
+    render();
+  }
 };
 
 let reorderDraft=[];
@@ -1210,14 +1268,15 @@ window.removePlant=async id=>{
     }
   }
 };
-window.editLog=(id,index)=>{
-  $('historyDialog').close();
-  openCare(id,{logIndex:index});
+window.editLog=(id,index,returnTo='history')=>{
+  if($('historyDialog').open) $('historyDialog').close();
+  openCare(id,{logIndex:index,returnTo});
 };
 
-window.removeLog=async(id,index)=>{
+window.removeLog=async(id,index,returnTo='history')=>{
   if(!confirm('このケア記録を削除しますか？')) return;
-  const p=data.plants.find(x=>x.id===id);
+  const p=data.plants.find(x=>String(x.id)===String(id));
+  if(!p || !p.logs?.[index]) return;
   const [removed]=p.logs.splice(index,1);
   if(save()){
     if(removed?.photoId){
@@ -1228,7 +1287,8 @@ window.removeLog=async(id,index)=>{
     p.logs.splice(index,0,removed);
     render();
   }
-  showHistory(id);
+  if(returnTo==='calendar') renderCalendar();
+  else showHistory(id);
 };
 
 $('menuBtn').onclick=e=>{
@@ -1248,6 +1308,21 @@ $('closeHelp').onclick=()=> $('helpDialog').close();
 $('releaseNotesBtn').onclick=()=>openReleaseNotes('menu');
 $('releaseNoticeDetails').onclick=()=>openReleaseNotes('notice');
 $('closeReleaseNotes').onclick=()=> $('releaseNotesDialog').close();
+
+function openThemeSettings(){
+  closeDataMenu();
+  $('themeMode').value=savedThemeMode();
+  $('themeDialog').showModal();
+}
+$('themeSettingsBtn').onclick=openThemeSettings;
+$('cancelTheme').onclick=()=> $('themeDialog').close();
+$('saveTheme').onclick=()=>{
+  const mode=$('themeMode').value;
+  applyTheme(mode,{persist:true});
+  $('themeDialog').close();
+  trackPlantCareEvent('theme_changed',{mode});
+  toast(`表示テーマを「${THEME_LABELS[mode]}」にしました`);
+};
 
 function openAnalyticsSettings(){
   closeDataMenu();
