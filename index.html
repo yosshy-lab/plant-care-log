@@ -3,15 +3,25 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#111827">
+<meta name="theme-color" id="themeColorMeta" content="#f3f4f6">
+<script>
+(()=>{
+  try{
+    const saved=localStorage.getItem('plant-care-theme-v1') || 'auto';
+    const dark=saved==='dark' || (saved==='auto' && matchMedia('(prefers-color-scheme: dark)').matches);
+    document.documentElement.dataset.theme=dark?'dark':'light';
+    document.getElementById('themeColorMeta').content=dark?'#0f172a':'#f3f4f6';
+  }catch(e){ document.documentElement.dataset.theme='light'; }
+})();
+</script>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="塊根植物記録">
 <link rel="apple-touch-icon" sizes="180x180" href="./apple-touch-icon.png">
 <link rel="icon" type="image/png" href="./apple-touch-icon.png">
 <title>塊根植物記録</title>
-<script src="./js/analytics.js?v=1.8.1"></script>
-<link rel="stylesheet" href="./css/styles.css?v=1.8.1">
+<script src="./js/analytics.js?v=1.9.0"></script>
+<link rel="stylesheet" href="./css/styles.css?v=1.9.0">
 </head>
 <body>
 <div class="wrap">
@@ -32,6 +42,7 @@
         <button id="remindersBtn" role="menuitem">備忘録・予定</button>
         <button id="reorderPlantsBtn" role="menuitem">株を並べ替える</button>
         <div class="menu-separator" role="separator"></div>
+        <button id="themeSettingsBtn" role="menuitem">表示テーマ：自動</button>
         <button id="weatherSettingsBtn" role="menuitem">天気・位置設定</button>
         <div class="menu-separator" role="separator"></div>
         <div id="photoStorageStatus" class="menu-backup-status" role="status">写真ストレージを確認中…</div>
@@ -151,11 +162,12 @@
         <p>水やり、薬剤散布、植え替え、施肥、状態・写真記録に対応しています。</p>
         <p>植物カードの「水やり」は、通常の水やり・液肥なしとしてすぐに記録します。詳しい内容を残す場合は「＋ ケアを記録」を使用してください。</p>
         <p>「＋ ケアを記録」の記録日時を変更すると、昨日など過去のケアを登録できます。未来の日時は「予定」として登録してください。</p>
-        <p>過去の記録は植物の詳細画面下部にある「履歴を見る」から確認・編集・削除できます。</p>
+        <p>過去の記録は植物の詳細画面下部にある「履歴を見る」、またはカレンダーの日付から確認・編集・削除できます。</p>
         <p>植物の詳細画面下部にある「予定を管理」では、1回だけの予定と、日・週・月単位の繰り返し予定を登録・編集・削除できます。間隔を2にすると隔日・隔週・隔月になります。</p>
         <p>同じケア予定を複数株へ登録する場合は、画面上部または右上メニューの「まとめてケア予定」で対象株を選択してください。ケア内容、予定日時、メモ、繰り返し周期を1回入力すると、選択した全株へ登録されます。</p>
         <p>株に紐づかない予定は、画面上部または右上メニューの「備忘録・予定」から登録できます。液肥や遮光変更などの予定名、日時、メモ、繰り返し間隔を設定するとカレンダーへ表示されます。</p>
-        <p>カレンダーで今日以前の日を選ぶと履歴を、未来の日を選ぶと予定を追加できます。</p>
+        <p>カレンダーで今日以前の日を選ぶと履歴を、未来の日を選ぶと予定を追加できます。登録済みのケアや予定は、日付欄から直接編集・削除できます。</p>
+        <p>画面の配色は、初期状態ではiPhoneやMacのライト／ダーク外観設定へ自動的に切り替わります。右上メニューの「表示テーマ」から、ライトまたはダークへ固定することもできます。</p>
       </div>
     </details>
     <details class="help-section">
@@ -216,6 +228,23 @@
     <p class="hint" id="releaseNotesHint">塊根植物記録の主な変更内容です。</p>
     <div id="releaseNotesList" class="release-notes-list"></div>
     <div class="actions"><button id="closeReleaseNotes">閉じる</button></div>
+  </div>
+</dialog>
+
+<dialog id="themeDialog">
+  <div class="modal">
+    <h2>表示テーマ</h2>
+    <p class="hint">「自動」は、iPhoneやMacの外観設定に合わせて切り替わります。</p>
+    <label for="themeMode">テーマ</label>
+    <select id="themeMode">
+      <option value="auto">自動</option>
+      <option value="light">ライト</option>
+      <option value="dark">ダーク</option>
+    </select>
+    <div class="actions">
+      <button class="secondary" id="cancelTheme">キャンセル</button>
+      <button id="saveTheme">適用</button>
+    </div>
   </div>
 </dialog>
 
@@ -598,12 +627,12 @@
   </div>
 </dialog>
 
-<script src="./js/storage.js?v=1.8.1"></script>
-<script src="./js/photo-storage.js?v=1.8.1"></script>
-<script src="./js/ui.js?v=1.8.1"></script>
-<script src="./js/reminders.js?v=1.8.1"></script>
-<script src="./js/calendar.js?v=1.8.1"></script>
-<script src="./js/weather.js?v=1.8.1"></script>
-<script src="./js/app.js?v=1.8.1"></script>
+<script src="./js/storage.js?v=1.9.0"></script>
+<script src="./js/photo-storage.js?v=1.9.0"></script>
+<script src="./js/ui.js?v=1.9.0"></script>
+<script src="./js/reminders.js?v=1.9.0"></script>
+<script src="./js/calendar.js?v=1.9.0"></script>
+<script src="./js/weather.js?v=1.9.0"></script>
+<script src="./js/app.js?v=1.9.0"></script>
 </body>
 </html>
