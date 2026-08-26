@@ -25,7 +25,7 @@ test('主要画面がJavaScriptエラーなく表示される', async ({ page })
   page.on('pageerror', error => errors.push(error.message));
   await page.goto('/');
   await expect(page).toHaveTitle('塊根植物記録');
-  await expect(page.locator('#appVersionDisplay')).toHaveText('v1.8.1');
+  await expect(page.locator('#appVersionDisplay')).toHaveText('v1.9.0');
   await expect(page.locator('#addBtn')).toBeVisible();
   await expect(page.locator('#plantSearch')).toBeVisible();
   await expect(page.locator('#calendarViewBtn')).toBeVisible();
@@ -57,13 +57,13 @@ test('更新案内は新バージョンの初回だけ表示しメニューか�
   await seed(page);
   await page.goto('/');
   await expect(page.locator('#releaseNotice')).toBeVisible();
-  await expect(page.locator('#releaseNotice')).toContainText('v1.8.1 更新');
-  await expect(page.locator('#releaseNotice')).toContainText('主要操作を画面上部へ集約');
+  await expect(page.locator('#releaseNotice')).toContainText('v1.9.0 更新');
+  await expect(page.locator('#releaseNotice')).toContainText('カレンダー編集と表示テーマを追加');
 
   await page.locator('#releaseNoticeDetails').click();
   await expect(page.locator('#releaseNotesDialog')).toBeVisible();
-  await expect(page.locator('#releaseNotesList')).toContainText('v1.8.1');
-  await expect(page.locator('#releaseNotesList')).not.toContainText('v1.8.0');
+  await expect(page.locator('#releaseNotesList')).toContainText('v1.9.0');
+  await expect(page.locator('#releaseNotesList')).not.toContainText('v1.8.1');
   await expect(page.locator('#releaseNotesHint')).toContainText('今回のアップデート内容');
   await page.locator('#closeReleaseNotes').click();
 
@@ -73,6 +73,7 @@ test('更新案内は新バージョンの初回だけ表示しメニューか�
   await page.locator('#menuBtn').click();
   await page.locator('#releaseNotesBtn').click();
   await expect(page.locator('#releaseNotesDialog')).toBeVisible();
+  await expect(page.locator('#releaseNotesList')).toContainText('v1.9.0');
   await expect(page.locator('#releaseNotesList')).toContainText('v1.8.1');
   await expect(page.locator('#releaseNotesList')).toContainText('v1.8.0');
   await expect(page.locator('#releaseNotesList')).toContainText('v1.7.0');
@@ -311,7 +312,7 @@ test('バックアップに件数とバージョン情報を含めて保存す�
   expect(payload).toMatchObject({
     format: 'plant-care-log-backup',
     schemaVersion: 1,
-    appVersion: '1.8.1'
+    appVersion: '1.9.0'
   });
   expect(payload.plants).toHaveLength(3);
   expect(payload.reminders).toEqual([reminder]);
