@@ -455,6 +455,122 @@ test('既存のケア履歴を日時と内容ごと編集する', async ({ page 
   expect(saved.plants[0].logs[0].time).toBe(new Date('2026-08-18T07:15').getTime());
 });
 
+test('カレンダーからケア済み記録を編集・削除できる', async ({ page }) => {
+  const log = {
+    time: new Date('2026-08-25T08:00').getTime(),
+    care: '水やり',
+    type: '通常',
+    fertilizer: 'なし',
+    details: { waterAmount: '100ml' },
+    note: '編集前'
+  };
+  await seed(page, [{ ...plants[0], logs: [log] }]);
+  await page.goto('/');
+  await page.locator('#calendarViewBtn').click();
+  await page.evaluate(() => window.selectCalendarDate('2026-08-25'));
+
+  const entry=page.locator('.calendar-care-entry');
+  await expect(entry).toContainText('グラキリス・水やり');
+  await entry.locator('.calendar-entry-edit').click();
+  await expect(page.locator('#careTitle')).toContainText('ケア記録を編集');
+  await page.locator('#waterAmount').fill('250ml');
+  await page.locator('#waterNote').fill('カレンダーから修正');
+  await page.locator('#saveCare').click();
+
+  await expect(page.locator('#careDialog')).toBeHidden();
+  await expect(page.locator('#historyDialog')).toBeHidden();
+  await expect(page.locator('.calendar-care-entry')).toContainText('250ml');
+  await expect(page.locator('.calendar-care-entry')).toContainText('カレンダーから修正');
+
+  page.once('dialog', dialog => dialog.accept());
+  await page.locator('.calendar-care-entry .calendar-entry-delete').click();
+  await expect(page.locator('.calendar-care-entry')).toHaveCount(0);
+  const saved = await page.evaluate(key => JSON.parse(localStorage.getItem(key)), storageKey);
+  expect(saved.plants[0].logs).toHaveLength(0);
+});
+
+test('カレンダーからケア予定を編集・削除できる', async ({ page }) => {
+  const plan = {
+    id: 'calendar-plan',
+    startAt: new Date('2099-01-15T09:00').getTime(),
+    care: '施肥',
+    type: '施肥',
+    fertilizer: 'なし',
+    details: { name: 'ハイポネックス', form: '液肥', amount: '2000倍' },
+    note: '編集前',
+    recurrence: { unit: 'none', interval: 1 }
+  };
+  await seed(page, [{ ...plants[0], plans: [plan], logs: [] }]);
+  await page.goto('/');
+  await page.locator('#calendarViewBtn').click();
+  await page.evaluate(() => window.selectCalendarDate('2099-01-15'));
+
+  const entry=page.locator('.calendar-plan-entry');
+  await expect(entry).toContainText('グラキリス・施肥予定');
+  await entry.locator('.calendar-entry-edit').click();
+  await expect(page.locator('#careTitle')).toContainText('ケア予定を編集');
+  await page.locator('#waterNote').fill('カレンダーから予定を修正');
+  await page.locator('#saveCare').click();
+
+  await expect(page.locator('#careDialog')).toBeHidden();
+  await expect(page.locator('#plansDialog')).toBeHidden();
+  await expect(page.locator('.calendar-plan-entry')).toContainText('カレンダーから予定を修正');
+
+  page.once('dialog', dialog => dialog.accept());
+  await page.locator('.calendar-plan-entry .calendar-entry-delete').click();
+  await expect(page.locator('.calendar-plan-entry')).toHaveCount(0);
+  const saved = await page.evaluate(key => JSON.parse(localStorage.getItem(key)), storageKey);
+  expect(saved.plants[0].plans).toHaveLength(0);
+});
+
+test('端末設定に合わせてダークモードへ切り替わる', async ({ page }) => {
+  await page.emulateMedia({ colorScheme: 'dark' });
+  await seed(page, [plants[0]]);
+  await page.goto('/');
+
+  await expect.poll(() => page.locator('body').evaluate(element => getComputedStyle(element).backgroundColor)).toBe('rgb(15, 23, 42)');
+  await expect(page.locator('.plant-card')).toHaveCSS('background-color', 'rgb(17, 24, 39)');
+  await expect(page.locator('body')).toHaveCSS('color', 'rgb(243, 244, 246)');
+
+  await page.locator('#addBtn').click();
+  await expect(page.locator('#plantDialog')).toHaveCSS('background-color', 'rgb(17, 24, 39)');
+  await expect(page.locator('#plantName')).toHaveCSS('background-color', 'rgb(17, 24, 39)');
+
+  await page.emulateMedia({ colorScheme: 'light' });
+  await expect(page.locator('body')).toHaveCSS('background-color', 'rgb(243, 244, 246)');
+});
+
+test('メニューで表示テーマを選択して保存できる', async ({ page }) => {
+  await page.emulateMedia({ colorScheme: 'light' });
+  await seed(page, [plants[0]]);
+  await page.goto('/');
+
+  await page.locator('#menuBtn').click();
+  await expect(page.locator('#themeSettingsBtn')).toHaveText('表示テーマ：自動');
+  await page.locator('#themeSettingsBtn').click();
+  await page.locator('#themeMode').selectOption('dark');
+  await page.locator('#saveTheme').click();
+
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  await expect(page.locator('body')).toHaveCSS('background-color', 'rgb(15, 23, 42)');
+  await expect.poll(() => page.evaluate(() => localStorage.getItem('plant-care-theme-v1'))).toBe('dark');
+
+  await page.emulateMedia({ colorScheme: 'light' });
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+
+  await page.reload();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  await page.locator('#menuBtn').click();
+  await expect(page.locator('#themeSettingsBtn')).toHaveText('表示テーマ：ダーク');
+  await page.locator('#themeSettingsBtn').click();
+  await page.locator('#themeMode').selectOption('auto');
+  await page.locator('#saveTheme').click();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+
+  await page.emulateMedia({ colorScheme: 'dark' });
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+});
+
 test('まとめて水やりを過去日時で複数株へ記録する', async ({ page }) => {
   await seed(page, plants.slice(0, 2).map(plant => ({ ...plant, managementStatus: 'active', logs: [] })));
   await page.goto('/');
