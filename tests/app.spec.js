@@ -531,10 +531,15 @@ test('端末設定に合わせてダークモードへ切り替わる', async ({
 
   await expect.poll(() => page.locator('body').evaluate(element => getComputedStyle(element).backgroundColor)).toBe('rgb(15, 23, 42)');
   await expect(page.locator('.plant-card')).toHaveCSS('background-color', 'rgb(17, 24, 39)');
+  await expect(page.locator('.plant-card')).toHaveCSS('border-top-color', 'rgb(51, 65, 85)');
   await expect(page.locator('body')).toHaveCSS('color', 'rgb(243, 244, 246)');
+  await expect(page.locator('#addBtn')).toHaveCSS('border-top-color', 'rgb(71, 85, 105)');
+  await expect(page.locator('.view-switch')).toHaveCSS('border-top-color', 'rgb(100, 116, 139)');
+  await expect(page.locator('.list-layout-switch')).toHaveCSS('border-top-color', 'rgb(100, 116, 139)');
 
   await page.locator('#addBtn').click();
   await expect(page.locator('#plantDialog')).toHaveCSS('background-color', 'rgb(17, 24, 39)');
+  await expect(page.locator('#plantDialog')).toHaveCSS('border-top-color', 'rgb(51, 65, 85)');
   await expect(page.locator('#plantName')).toHaveCSS('background-color', 'rgb(17, 24, 39)');
 
   await page.emulateMedia({ colorScheme: 'light' });
