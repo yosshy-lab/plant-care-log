@@ -1,4 +1,5 @@
 (async()=>{
+  initializeTheme();
   await initializePhotoStorage();
   autoRecordFromUrl();
   render();
