@@ -59,13 +59,13 @@ function calendarEventsFor(date){
   const careFilter=$('calendarCareFilter').value;
   const events=[];
   data.plants.filter(p=>!plantId || p.id===plantId).forEach(p=>{
-    (p.logs || []).forEach(log=>{
+    (p.logs || []).forEach((log,logIndex)=>{
       const care=log.care || '水やり';
       if((!careFilter || care===careFilter) && dateKey(new Date(log.time))===date){
-        events.push({plant:p,log,care,planned:false});
+        events.push({plant:p,log,logIndex,care,planned:false});
       }
       if(care==='薬剤散布' && (!careFilter || careFilter==='薬剤散布') && log.details?.nextDate===date){
-        events.push({plant:p,log,care,planned:true});
+        events.push({plant:p,log,logIndex,care,planned:true});
       }
     });
     (p.plans || []).forEach(plan=>{
@@ -148,15 +148,26 @@ function renderCalendarDayDetails(){
         <button class="secondary calendar-entry-edit" type="button" onclick="editReminder('${esc(String(event.reminder.id))}')">編集</button></div>`;
     }
     if(event.carePlan){
-      return `<div class="calendar-entry"><div class="entry-title">⏰ ${esc(event.plant.name)}・${esc(event.care)}予定</div>
-        <div class="entry-meta">${careDetailHtml(event.log)}<br>${esc(recurrenceText(event.log.recurrence))}</div></div>`;
+      return `<div class="calendar-entry calendar-plan-entry"><div class="entry-title">⏰ ${esc(event.plant.name)}・${esc(event.care)}予定</div>
+        <div class="entry-meta">${careDetailHtml(event.log)}<br>${esc(recurrenceText(event.log.recurrence))}</div>
+        <div class="calendar-entry-actions">
+          <button class="secondary calendar-entry-edit" type="button" onclick="editPlan('${esc(String(event.plant.id))}','${esc(String(event.log.id))}','calendar')">編集</button>
+          <button class="danger calendar-entry-delete" type="button" onclick="removePlan('${esc(String(event.plant.id))}','${esc(String(event.log.id))}','calendar')">削除</button>
+        </div></div>`;
     }
     if(event.planned){
       return `<div class="calendar-entry"><div class="entry-title">⏰ ${esc(event.plant.name)}・薬剤散布予定</div>
-        <div class="entry-meta">薬剤：${esc(event.log.details?.name || '未入力')} ／ 対象：${esc(event.log.details?.target || '未入力')}</div></div>`;
+        <div class="entry-meta">薬剤：${esc(event.log.details?.name || '未入力')} ／ 対象：${esc(event.log.details?.target || '未入力')}</div>
+        <div class="calendar-entry-actions">
+          <button class="secondary calendar-entry-edit" type="button" onclick="editLog('${esc(String(event.plant.id))}',${event.logIndex},'calendar')">元の記録を編集</button>
+        </div></div>`;
     }
-    return `<div class="calendar-entry"><div class="entry-title">${esc(event.plant.name)}・${esc(event.care)}</div>
-      <div class="entry-meta">${careDetailHtml(event.log)}</div>${photoHtml(event.log.photo)}</div>`;
+    return `<div class="calendar-entry calendar-care-entry"><div class="entry-title">${esc(event.plant.name)}・${esc(event.care)}</div>
+      <div class="entry-meta">${careDetailHtml(event.log)}</div>${photoHtml(event.log.photo)}
+      <div class="calendar-entry-actions">
+        <button class="secondary calendar-entry-edit" type="button" onclick="editLog('${esc(String(event.plant.id))}',${event.logIndex},'calendar')">編集</button>
+        <button class="danger calendar-entry-delete" type="button" onclick="removeLog('${esc(String(event.plant.id))}',${event.logIndex},'calendar')">削除</button>
+      </div></div>`;
   }).join(''):(rain===null?'<div class="empty">この日の記録・予定はありません。</div>':'');
   const isFuture=selectedCalendarDate>dateKey(new Date());
   const addCareHtml=data.plants.some(plant=>plantManagementStatus(plant)!=='ended')
