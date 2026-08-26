@@ -3,14 +3,14 @@ import { expect, test } from '@playwright/test';
 
 const storageKey = 'plant-care-log-v1';
 
-async function seed(page, plants = []) {
-  await page.addInitScript(({ key, value }) => {
+async function seed(page, plants = [], reminders = []) {
+  await page.addInitScript(({ key, plants: seededPlants, reminders: seededReminders }) => {
     if (!sessionStorage.getItem('playwright-data-seeded')) {
-      localStorage.setItem(key, JSON.stringify({ plants: value }));
+      localStorage.setItem(key, JSON.stringify({ plants: seededPlants, reminders: seededReminders }));
       localStorage.setItem('plant-care-analytics-enabled-v1', 'false');
       sessionStorage.setItem('playwright-data-seeded', 'true');
     }
-  }, { key: storageKey, value: plants });
+  }, { key: storageKey, plants, reminders });
 }
 
 const plants = [
@@ -25,7 +25,7 @@ test('主要画面がJavaScriptエラーなく表示される', async ({ page })
   page.on('pageerror', error => errors.push(error.message));
   await page.goto('/');
   await expect(page).toHaveTitle('塊根植物記録');
-  await expect(page.locator('#appVersionDisplay')).toHaveText('v1.7.0');
+  await expect(page.locator('#appVersionDisplay')).toHaveText('v1.8.0');
   await expect(page.locator('#addBtn')).toBeVisible();
   await expect(page.locator('#plantSearch')).toBeVisible();
   await expect(page.locator('#calendarViewBtn')).toBeVisible();
@@ -36,8 +36,8 @@ test('更新案内は新バージョンの初回だけ表示しメニューか�
   await seed(page);
   await page.goto('/');
   await expect(page.locator('#releaseNotice')).toBeVisible();
-  await expect(page.locator('#releaseNotice')).toContainText('v1.7.0 更新');
-  await expect(page.locator('#releaseNotice')).toContainText('写真保存をIndexedDBへ移行');
+  await expect(page.locator('#releaseNotice')).toContainText('v1.8.0 更新');
+  await expect(page.locator('#releaseNotice')).toContainText('株に紐づかない備忘録・予定を追加');
 
   await page.reload();
   await expect(page.locator('#releaseNotice')).toBeHidden();
@@ -45,7 +45,7 @@ test('更新案内は新バージョンの初回だけ表示しメニューか�
   await page.locator('#menuBtn').click();
   await page.locator('#releaseNotesBtn').click();
   await expect(page.locator('#releaseNotesDialog')).toBeVisible();
-  await expect(page.locator('#releaseNotesList')).toContainText('v1.7.0');
+  await expect(page.locator('#releaseNotesList')).toContainText('v1.8.0');
   await expect(page.locator('#releaseNotesList')).toContainText('隔週・隔月');
   await expect(page.locator('#releaseNotesList')).toContainText('v1.0.0');
 });
@@ -262,7 +262,14 @@ test('バックアップに件数とバージョン情報を含めて保存す�
     photo: index === 0 ? 'data:image/jpeg;base64,AA==' : '',
     logs: index === 0 ? [{ time: Date.now() - 60_000, care: '水やり', photo: '' }] : []
   }));
-  await seed(page, withLogs);
+  const reminder = {
+    id: 'backup-reminder',
+    title: '液肥',
+    startAt: new Date('2099-01-01T09:00').getTime(),
+    memo: '2000倍',
+    recurrence: { unit: 'week', interval: 2 }
+  };
+  await seed(page, withLogs, [reminder]);
   await page.goto('/');
   await page.locator('#menuBtn').click();
 
@@ -274,14 +281,15 @@ test('バックアップに件数とバージョン情報を含めて保存す�
   expect(payload).toMatchObject({
     format: 'plant-care-log-backup',
     schemaVersion: 1,
-    appVersion: '1.7.0'
+    appVersion: '1.8.0'
   });
   expect(payload.plants).toHaveLength(3);
+  expect(payload.reminders).toEqual([reminder]);
   expect(payload.plants[0].photo).toBe('data:image/jpeg;base64,AA==');
 
   await page.locator('#menuBtn').click();
   await expect(page.locator('#backupStatus')).toContainText('最終保存');
-  await expect(page.locator('#backupStatus')).toContainText('3株・履歴1件・予定0件・写真1枚');
+  await expect(page.locator('#backupStatus')).toContainText('3株・履歴1件・予定1件・写真1枚');
 });
 
 test('復元前に自動退避し、復元を取り消せる', async ({ page }) => {
@@ -558,4 +566,78 @@ test('未来日のカレンダーから予定登録画面を開ける', async ({
   await expect(page.locator('#careTitle')).toContainText('ケア予定');
   await expect(page.locator('#careRecordedAt')).toHaveValue(/^2099-05-10T/);
   await expect(page.locator('#recurrenceFields')).toBeVisible();
+});
+
+test('株を選ばず隔週の備忘録を登録してカレンダーに表示する', async ({ page }) => {
+  await seed(page, [plants[0]]);
+  await page.goto('/');
+  await page.locator('#menuBtn').click();
+  await page.locator('#remindersBtn').click();
+  await expect(page.locator('#remindersDialog')).toBeVisible();
+  await page.locator('#addReminder').click();
+  await page.locator('#reminderTitle').fill('液肥');
+  await page.locator('#reminderStartAt').fill('2099-01-01T09:00');
+  await page.locator('#reminderRecurrenceUnit').selectOption('week');
+  await page.locator('#reminderRecurrenceInterval').fill('2');
+  await page.locator('#reminderMemo').fill('ハイポネックスを2000倍で使用');
+  await page.locator('#saveReminder').click();
+  await expect(page.locator('#reminderDialog')).toBeHidden();
+
+  const saved = await page.evaluate(key => JSON.parse(localStorage.getItem(key)), storageKey);
+  expect(saved.reminders).toHaveLength(1);
+  expect(saved.reminders[0]).toMatchObject({
+    title: '液肥',
+    memo: 'ハイポネックスを2000倍で使用',
+    recurrence: { unit: 'week', interval: 2 }
+  });
+
+  await page.locator('#calendarViewBtn').click();
+  await page.evaluate(() => window.selectCalendarDate('2099-01-15'));
+  await expect(page.locator('#calendarDayDetails')).toContainText('液肥');
+  await expect(page.locator('#calendarDayDetails')).toContainText('隔週');
+  await expect(page.locator('#calendarDayDetails')).toContainText('ハイポネックスを2000倍で使用');
+
+  await page.evaluate(() => window.selectCalendarDate('2099-01-08'));
+  await expect(page.locator('#calendarDayDetails')).not.toContainText('液肥');
+});
+
+test('備忘録を編集・削除できる', async ({ page }) => {
+  const reminder = {
+    id: 'reminder-edit',
+    title: '液肥',
+    startAt: new Date('2099-02-01T09:00').getTime(),
+    memo: '1000倍',
+    recurrence: { unit: 'month', interval: 1 }
+  };
+  await seed(page, [], [reminder]);
+  await page.goto('/');
+  await page.locator('#menuBtn').click();
+  await page.locator('#remindersBtn').click();
+  await page.getByRole('button', { name: '編集' }).click();
+  await page.locator('#reminderTitle').fill('液肥・追肥');
+  await page.locator('#reminderMemo').fill('2000倍へ変更');
+  await page.locator('#saveReminder').click();
+  await expect(page.locator('#reminderDialog')).toBeHidden();
+
+  let saved = await page.evaluate(key => JSON.parse(localStorage.getItem(key)), storageKey);
+  expect(saved.reminders[0].title).toBe('液肥・追肥');
+  expect(saved.reminders[0].memo).toBe('2000倍へ変更');
+
+  await page.locator('#menuBtn').click();
+  await page.locator('#remindersBtn').click();
+  page.once('dialog', dialog => dialog.accept());
+  await page.getByRole('button', { name: '削除' }).click();
+  await expect(page.locator('#remindersList')).toContainText('備忘録はまだありません');
+  saved = await page.evaluate(key => JSON.parse(localStorage.getItem(key)), storageKey);
+  expect(saved.reminders).toHaveLength(0);
+});
+
+test('未来日のカレンダーから株を選ばず備忘録を追加できる', async ({ page }) => {
+  await seed(page);
+  await page.goto('/');
+  await page.locator('#calendarViewBtn').click();
+  await page.evaluate(() => window.selectCalendarDate('2099-05-10'));
+  await page.locator('#addReminderForDateBtn').click();
+  await expect(page.locator('#reminderDialog')).toBeVisible();
+  await expect(page.locator('#reminderStartAt')).toHaveValue(/^2099-05-10T/);
 });

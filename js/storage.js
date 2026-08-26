@@ -1,4 +1,4 @@
-const APP_VERSION='1.7.0';
+const APP_VERSION='1.8.0';
 const KEY='plant-care-log-v1';
 const WEATHER_KEY='plant-care-weather-v1';
 const LIST_LAYOUT_KEY='plant-care-list-layout-v1';
@@ -23,7 +23,9 @@ function saveBackupMeta(meta){
 function backupSummary(targetData=data){
   const plants=Array.isArray(targetData?.plants)?targetData.plants:[];
   const logs=plants.reduce((sum,plant)=>sum+(Array.isArray(plant.logs)?plant.logs.length:0),0);
-  const plans=plants.reduce((sum,plant)=>sum+(Array.isArray(plant.plans)?plant.plans.length:0),0);
+  const plantPlans=plants.reduce((sum,plant)=>sum+(Array.isArray(plant.plans)?plant.plans.length:0),0);
+  const reminders=Array.isArray(targetData?.reminders)?targetData.reminders.length:0;
+  const plans=plantPlans+reminders;
   const photos=plants.reduce((sum,plant)=>
     sum+(plant.photo?1:0)+(Array.isArray(plant.logs)?plant.logs.filter(log=>log?.photo).length:0),0);
   return {plants:plants.length,logs,plans,photos};
@@ -35,7 +37,8 @@ function createBackupPayload(targetData=data){
     schemaVersion:1,
     appVersion:APP_VERSION,
     exportedAt:Date.now(),
-    plants:targetData.plants
+    plants:targetData.plants,
+    reminders:Array.isArray(targetData.reminders)?targetData.reminders:[]
   };
 }
 
@@ -43,6 +46,7 @@ function storageDataPayload(targetData=data){
   const useIndexedDb=typeof photoStorageAvailable!=='undefined' && photoStorageAvailable;
   if(!useIndexedDb) return targetData;
   return {
+    reminders:Array.isArray(targetData.reminders)?targetData.reminders:[],
     plants:(targetData.plants || []).map(plant=>({
       ...plant,
       photo:'',
@@ -53,6 +57,17 @@ function storageDataPayload(targetData=data){
 
 function validateBackup(input){
   if(!input || typeof input!=='object' || !Array.isArray(input.plants)) throw new Error('invalid backup');
+  if('reminders' in input && !Array.isArray(input.reminders)) throw new Error('invalid backup');
+  const validRecurrence=recurrence=>
+    recurrence && ['none','day','week','month'].includes(recurrence.unit) &&
+    Number.isInteger(Number(recurrence.interval)) && Number(recurrence.interval)>=1;
+  const validReminders=(input.reminders || []).every(reminder=>
+    reminder && typeof reminder==='object' &&
+    (typeof reminder.id==='string' || typeof reminder.id==='number') &&
+    typeof reminder.title==='string' && reminder.title.trim() &&
+    Number.isFinite(Number(reminder.startAt)) && validRecurrence(reminder.recurrence) &&
+    (!('memo' in reminder) || typeof reminder.memo==='string')
+  );
   const ids=new Set();
   const valid=input.plants.every(plant=>{
     if(!plant || typeof plant!=='object') return false;
@@ -69,18 +84,18 @@ function validateBackup(input){
     const validPlans=(plant.plans || []).every(plan=>
       plan && typeof plan==='object' && (typeof plan.id==='string' || typeof plan.id==='number') &&
       Number.isFinite(Number(plan.startAt)) && typeof plan.care==='string' &&
-      plan.recurrence && ['none','day','week','month'].includes(plan.recurrence.unit) &&
-      Number.isInteger(Number(plan.recurrence.interval)) && Number(plan.recurrence.interval)>=1
+      validRecurrence(plan.recurrence)
     );
     return validLogs && validPlans;
   });
-  if(!valid) throw new Error('invalid backup');
+  if(!valid || !validReminders) throw new Error('invalid backup');
   return {
     plants:input.plants.map(plant=>({
       ...plant,
       logs:Array.isArray(plant.logs)?plant.logs:[],
       plans:Array.isArray(plant.plans)?plant.plans:[]
     })),
+    reminders:(input.reminders || []).map(reminder=>({...reminder})),
     exportedAt:Number(input.exportedAt) || null
   };
 }
@@ -100,11 +115,14 @@ function readStoredData(key){
   try{
     const parsed=JSON.parse(value);
     if(!parsed || !Array.isArray(parsed.plants)) return null;
-    return {plants:parsed.plants.map(plant=>({
-      ...plant,
-      logs:Array.isArray(plant.logs)?plant.logs:[],
-      plans:Array.isArray(plant.plans)?plant.plans:[]
-    }))};
+    return {
+      plants:parsed.plants.map(plant=>({
+        ...plant,
+        logs:Array.isArray(plant.logs)?plant.logs:[],
+        plans:Array.isArray(plant.plans)?plant.plans:[]
+      })),
+      reminders:Array.isArray(parsed.reminders)?parsed.reminders:[]
+    };
   }catch(e){
     console.warn(`保存データを読み込めませんでした: ${key}`, e);
     return null;
@@ -123,7 +141,7 @@ function loadData(){
     }
   }
 
-  return {plants:[]};
+  return {plants:[],reminders:[]};
 }
 
 let data=loadData();
@@ -148,7 +166,7 @@ $('appVersionDisplay').textContent=`v${APP_VERSION}`;
 
 function backupStatusText(){
   const summary=backupSummary();
-  if(!summary.plants) return '登録データはありません';
+  if(!summary.plants && !summary.logs && !summary.plans && !summary.photos) return '登録データはありません';
   const meta=loadBackupMeta();
   const counts=`${summary.plants}株・履歴${summary.logs}件・予定${summary.plans}件・写真${summary.photos}枚`;
   if(!meta.lastBackupAt) return `未バックアップ　${counts}`;
@@ -157,7 +175,7 @@ function backupStatusText(){
 
 function isBackupDue(){
   const summary=backupSummary();
-  if(!summary.plants) return false;
+  if(!summary.plants && !summary.logs && !summary.plans && !summary.photos) return false;
   const now=Date.now();
   const meta=loadBackupMeta();
   if(meta.lastBackupAt) return now-meta.lastBackupAt>=BACKUP_REMINDER_MS;
@@ -166,7 +184,8 @@ function isBackupDue(){
 
 function renderBackupStatus(){
   const meta=loadBackupMeta();
-  if(data.plants.length && !meta.firstDataSeenAt){
+  const summary=backupSummary();
+  if((summary.plants || summary.logs || summary.plans || summary.photos) && !meta.firstDataSeenAt){
     meta.firstDataSeenAt=Date.now();
     saveBackupMeta(meta);
   }
@@ -226,7 +245,7 @@ $('importFile').onchange=async()=>{
     }
 
     const previous=data;
-    data={plants:restored.plants};
+    data={plants:restored.plants,reminders:restored.reminders};
     if(typeof photoStorageAvailable!=='undefined' && photoStorageAvailable){
       try{
         await persistEmbeddedPhotos(data);
@@ -262,7 +281,7 @@ $('restorePreImportBtn').onclick=async()=>{
     if(!confirm(`復元前の${summary.plants}株・履歴${summary.logs}件へ戻しますか？\n現在のデータも復元ポイントとして入れ替えて保存します。`)) return;
     const current=createBackupPayload();
     const previous=data;
-    data={plants:restorePoint.plants};
+    data={plants:restorePoint.plants,reminders:restorePoint.reminders};
     if(typeof photoStorageAvailable!=='undefined' && photoStorageAvailable){
       try{
         await persistEmbeddedPhotos(data);

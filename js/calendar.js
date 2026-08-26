@@ -75,6 +75,13 @@ function calendarEventsFor(date){
       }
     });
   });
+  if(!plantId && !careFilter){
+    (data.reminders || []).forEach(reminder=>{
+      if(planOccursOnDate(reminder,date)){
+        events.push({reminder,log:reminder,planned:true,globalReminder:true});
+      }
+    });
+  }
   return events.sort((a,b)=>Number(a.planned)-Number(b.planned) ||
     Number(b.log.time || b.log.startAt)-Number(a.log.time || a.log.startAt));
 }
@@ -98,6 +105,7 @@ function renderCalendar(){
     const rainMarker=rain===null?'':`<i class="event-dot ${rain>=Number(weather.equivalentThreshold)?'rain-equivalent':'rain'}" title="${rainLabelForDate(key)} ${rain.toFixed(1)}mm${weatherCitySuffix()}"></i>`;
     const eventLimit=rain===null?5:4;
     const markers=events.slice(0,eventLimit).map(event=>{
+      if(event.globalReminder) return '<i class="event-dot reminder" title="備忘録"></i>';
       if(event.planned) return '<i class="event-dot planned" title="予定"></i>';
       const photo=event.log.photo ? '<span class="photo-mark">📷</span>' : '';
       return `<i class="event-dot ${CARE_CLASSES[event.care] || 'growth'}"></i>${photo}`;
@@ -134,6 +142,11 @@ function renderCalendarDayDetails(){
     ${equivalent && canRecordRain?`<button class="rain-action" onclick="openRainWatering('${selectedCalendarDate}',${rain})">${isToday?'現在までの雨を水やり扱いにする':'雨を水やり扱いにする'}</button>`:''}
   </div>`;
   const careHtml=events.length?events.map(event=>{
+    if(event.globalReminder){
+      return `<div class="calendar-entry reminder-entry"><div class="entry-title">📝 ${esc(event.reminder.title)}</div>
+        <div class="entry-meta">${esc(recurrenceText(event.reminder.recurrence))}${event.reminder.memo?`<br>${esc(event.reminder.memo)}`:''}</div>
+        <button class="secondary calendar-entry-edit" type="button" onclick="editReminder('${esc(String(event.reminder.id))}')">編集</button></div>`;
+    }
     if(event.carePlan){
       return `<div class="calendar-entry"><div class="entry-title">⏰ ${esc(event.plant.name)}・${esc(event.care)}予定</div>
         <div class="entry-meta">${careDetailHtml(event.log)}<br>${esc(recurrenceText(event.log.recurrence))}</div></div>`;
@@ -149,7 +162,10 @@ function renderCalendarDayDetails(){
   const addCareHtml=data.plants.some(plant=>plantManagementStatus(plant)!=='ended')
     ?`<button id="addCareForDateBtn" class="calendar-add-care" type="button" onclick="openCalendarCare('${selectedCalendarDate}')">＋ この日の${isFuture?'予定':'ケア'}を追加</button>`
     :'';
-  $('calendarDayDetails').innerHTML=`<h3>${title}</h3>${addCareHtml}${rainHtml}${careHtml}`;
+  const addReminderHtml=selectedCalendarDate>today
+    ?`<button id="addReminderForDateBtn" class="calendar-add-reminder" type="button" onclick="openCalendarReminder('${selectedCalendarDate}')">＋ この日の備忘録を追加</button>`
+    :'';
+  $('calendarDayDetails').innerHTML=`<h3>${title}</h3><div class="calendar-add-actions">${addCareHtml}${addReminderHtml}</div>${rainHtml}${careHtml}`;
 }
 
 let calendarCareDate='';

@@ -10,8 +10,8 @@
 <link rel="apple-touch-icon" sizes="180x180" href="./apple-touch-icon.png">
 <link rel="icon" type="image/png" href="./apple-touch-icon.png">
 <title>塊根植物記録</title>
-<script src="./js/analytics.js?v=1.7.0"></script>
-<link rel="stylesheet" href="./css/styles.css?v=1.7.0">
+<script src="./js/analytics.js?v=1.8.0"></script>
+<link rel="stylesheet" href="./css/styles.css?v=1.8.0">
 </head>
 <body>
 <div class="wrap">
@@ -28,6 +28,7 @@
         <div class="menu-separator" role="separator"></div>
         <button id="batchWaterBtn" role="menuitem">まとめて水やり</button>
         <button id="batchShortcutBtn" role="menuitem">まとめて水やりURLをコピー</button>
+        <button id="remindersBtn" role="menuitem">備忘録・予定</button>
         <button id="reorderPlantsBtn" role="menuitem">株を並べ替える</button>
         <div class="menu-separator" role="separator"></div>
         <button id="weatherSettingsBtn" role="menuitem">天気・位置設定</button>
@@ -111,6 +112,7 @@
         <span class="legend-item"><i class="event-dot fertilize"></i>施肥</span>
         <span class="legend-item"><i class="event-dot growth"></i>状態・写真</span>
         <span class="legend-item"><i class="event-dot planned"></i>予定</span>
+        <span class="legend-item"><i class="event-dot reminder"></i>備忘録</span>
         <span class="legend-item"><i class="event-dot rain"></i>降雨</span>
         <span class="legend-item"><i class="event-dot rain-equivalent"></i>水やり相当候補</span>
       </div>
@@ -148,6 +150,7 @@
         <p>「＋ ケアを記録」の記録日時を変更すると、昨日など過去のケアを登録できます。未来の日時は「予定」として登録してください。</p>
         <p>過去の記録は植物の詳細画面下部にある「履歴を見る」から確認・編集・削除できます。</p>
         <p>植物の詳細画面下部にある「予定を管理」では、1回だけの予定と、日・週・月単位の繰り返し予定を登録・編集・削除できます。間隔を2にすると隔日・隔週・隔月になります。</p>
+        <p>株に紐づかない予定は、右上メニューの「備忘録・予定」から登録できます。液肥や遮光変更などの予定名、日時、メモ、繰り返し間隔を設定するとカレンダーへ表示されます。</p>
         <p>カレンダーで今日以前の日を選ぶと履歴を、未来の日を選ぶと予定を追加できます。</p>
       </div>
     </details>
@@ -435,6 +438,51 @@
   </div>
 </dialog>
 
+<dialog id="remindersDialog">
+  <div class="modal">
+    <div class="plans-header">
+      <h2>備忘録・予定</h2>
+      <button class="secondary" id="addReminder">＋ 予定を追加</button>
+    </div>
+    <p class="hint">株を選ばず、液肥や作業予定などをカレンダーへ登録できます。</p>
+    <div id="remindersList"></div>
+    <div class="actions"><button id="closeReminders">閉じる</button></div>
+  </div>
+</dialog>
+
+<dialog id="reminderDialog">
+  <div class="modal">
+    <h2 id="reminderDialogTitle">備忘録を追加</h2>
+    <label>予定名</label>
+    <input id="reminderTitle" placeholder="例：液肥、遮光ネットを変更" maxlength="80">
+    <label>予定日時</label>
+    <div class="date-field"><input id="reminderStartAt" type="datetime-local"></div>
+    <div class="recurrence-fields">
+      <label>繰り返し</label>
+      <select id="reminderRecurrenceUnit">
+        <option value="none">繰り返さない</option>
+        <option value="day">日単位</option>
+        <option value="week">週単位</option>
+        <option value="month">月単位</option>
+      </select>
+      <div id="reminderRecurrenceIntervalFields" hidden>
+        <label>間隔</label>
+        <div class="recurrence-interval-row">
+          <input id="reminderRecurrenceInterval" type="number" min="1" max="365" value="1" inputmode="numeric">
+          <span id="reminderRecurrenceIntervalUnit">日おき</span>
+        </div>
+      </div>
+      <div id="reminderRecurrenceSummary" class="hint">この日時に1回だけ表示します。</div>
+    </div>
+    <label>メモ（任意）</label>
+    <textarea id="reminderMemo" placeholder="例：ハイポネックスを2000倍で使用" maxlength="1000"></textarea>
+    <div class="actions">
+      <button class="secondary" id="cancelReminder">キャンセル</button>
+      <button id="saveReminder">予定を保存</button>
+    </div>
+  </div>
+</dialog>
+
 <dialog id="plansDialog">
   <div class="modal">
     <div class="plans-header">
@@ -531,11 +579,12 @@
   </div>
 </dialog>
 
-<script src="./js/storage.js?v=1.7.0"></script>
-<script src="./js/photo-storage.js?v=1.7.0"></script>
-<script src="./js/ui.js?v=1.7.0"></script>
-<script src="./js/calendar.js?v=1.7.0"></script>
-<script src="./js/weather.js?v=1.7.0"></script>
-<script src="./js/app.js?v=1.7.0"></script>
+<script src="./js/storage.js?v=1.8.0"></script>
+<script src="./js/photo-storage.js?v=1.8.0"></script>
+<script src="./js/ui.js?v=1.8.0"></script>
+<script src="./js/reminders.js?v=1.8.0"></script>
+<script src="./js/calendar.js?v=1.8.0"></script>
+<script src="./js/weather.js?v=1.8.0"></script>
+<script src="./js/app.js?v=1.8.0"></script>
 </body>
 </html>
