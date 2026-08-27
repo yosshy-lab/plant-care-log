@@ -136,7 +136,7 @@ button:disabled{opacity:.45;cursor:not-allowed}
 #plants.grid-layout .elapsed{display:block;font-size:18px;line-height:1.2;margin:7px 0 2px}
 #plants.grid-layout .elapsed span{display:block;font-size:9px;margin-top:1px}
 #plants.grid-layout .care-actions{gap:5px;margin-top:auto}
-#plants.grid-layout .care,#plants.grid-layout .quick-water{min-height:40px;font-size:10px;padding:7px 4px;white-space:normal}
+#plants.grid-layout .care,#plants.grid-layout .quick-water{min-height:40px;font-size:13px;padding:7px 4px;white-space:normal}
 @container (max-width:230px){
   .care-actions{grid-template-columns:1fr}
   .care,.quick-water{min-height:40px}

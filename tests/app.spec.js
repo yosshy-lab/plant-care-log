@@ -595,16 +595,21 @@ test('株カードを余白の少ないレイアウトで表示する', async ({
   await page.locator('#gridLayoutBtn').click();
   const gridLayout=await page.locator('.plant-card').first().evaluate(card=>{
     const elapsed=card.querySelector('.elapsed');
+    const actionButtons=[...card.querySelectorAll('.care-actions button')];
     const style=getComputedStyle(card);
     return {
       cardPaddingTop:parseFloat(style.paddingTop),
       elapsedFontSize:parseFloat(getComputedStyle(elapsed).fontSize),
-      nameMinHeight:getComputedStyle(card.querySelector('.name')).minHeight
+      nameMinHeight:getComputedStyle(card.querySelector('.name')).minHeight,
+      actionFontSizes:actionButtons.map(button=>parseFloat(getComputedStyle(button).fontSize)),
+      actionLabelsFit:actionButtons.every(button=>button.scrollWidth<=button.clientWidth+1 && button.scrollHeight<=button.clientHeight+1)
     };
   });
   expect(gridLayout.cardPaddingTop).toBeLessThanOrEqual(10);
   expect(gridLayout.elapsedFontSize).toBeLessThanOrEqual(18);
   expect(gridLayout.nameMinHeight).toBe('0px');
+  expect(gridLayout.actionFontSizes).toEqual([13,13]);
+  expect(gridLayout.actionLabelsFit).toBe(true);
 });
 
 test('メニューで表示テーマを選択して保存できる', async ({ page }) => {
