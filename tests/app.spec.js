@@ -580,14 +580,17 @@ test('株カードを余白の少ないレイアウトで表示する', async ({
       cardPaddingTop:parseFloat(cardStyle.paddingTop),
       elapsedFontSize:parseFloat(elapsedStyle.fontSize),
       elapsedDisplay:elapsedStyle.display,
-      mainTop:elapsed.getBoundingClientRect().top,
+      elapsedLeft:elapsed.getBoundingClientRect().left,
+      elapsedBottom:elapsed.getBoundingClientRect().bottom,
+      labelLeft:label.getBoundingClientRect().left,
       labelTop:label.getBoundingClientRect().top
     };
   });
   expect(listLayout.cardPaddingTop).toBeLessThanOrEqual(12);
   expect(listLayout.elapsedFontSize).toBeLessThanOrEqual(22);
   expect(listLayout.elapsedDisplay).toBe('flex');
-  expect(Math.abs(listLayout.mainTop-listLayout.labelTop)).toBeLessThan(10);
+  expect(listLayout.labelLeft).toBeGreaterThan(listLayout.elapsedLeft);
+  expect(listLayout.labelTop).toBeLessThan(listLayout.elapsedBottom);
 
   await page.locator('#gridLayoutBtn').click();
   const gridLayout=await page.locator('.plant-card').first().evaluate(card=>{
