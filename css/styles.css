@@ -109,23 +109,34 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .list-layout-switch{display:grid;grid-template-columns:1fr 1fr;gap:3px;padding:3px;background:var(--line);border:1px solid var(--control-border);border-radius:12px}
 .list-layout-switch button{padding:7px 11px;background:transparent;color:var(--muted);font-size:13px;border-radius:9px}
 .list-layout-switch button.active{background:var(--surface);color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,.08)}
-.plant-card{position:relative;cursor:pointer;container-type:inline-size}
+.plant-card{
+  position:relative;cursor:pointer;container-type:inline-size;
+  padding:12px 14px;margin-bottom:9px
+}
 .plant-card:focus-visible{outline:3px solid #93c5fd;outline-offset:2px}
+.plant-card .name{font-size:17px;line-height:1.3}
+.plant-card .meta{font-size:12px;line-height:1.35;margin-top:2px}
+.plant-card .elapsed{
+  display:flex;align-items:baseline;gap:6px;flex-wrap:wrap;
+  margin:7px 0 2px;font-size:22px;line-height:1.2
+}
+.plant-card .elapsed span{font-size:11px;line-height:1.2}
+.plant-card .care-actions{margin-top:7px}
+.plant-card .care,.plant-card .quick-water{min-height:44px;padding:9px 7px;font-size:14px}
 #plants.grid-layout{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-auto-rows:1fr;gap:9px}
-#plants.grid-layout .card{display:flex;flex-direction:column;min-width:0;height:100%;margin-bottom:0;padding:12px}
+#plants.grid-layout .card{display:flex;flex-direction:column;min-width:0;height:100%;margin-bottom:0;padding:10px}
 #plants.grid-layout .name{
-  display:-webkit-box;min-height:2.6em;font-size:16px;line-height:1.3;overflow:hidden;
+  display:-webkit-box;font-size:15px;line-height:1.3;overflow:hidden;
   overflow-wrap:anywhere;-webkit-box-orient:vertical;-webkit-line-clamp:2
 }
 #plants.grid-layout .plant-summary>.meta{
-  display:-webkit-box;min-height:2.7em;font-size:11px;line-height:1.35;overflow:hidden;
+  display:-webkit-box;font-size:10px;line-height:1.3;overflow:hidden;
   -webkit-box-orient:vertical;-webkit-line-clamp:2
 }
-#plants.grid-layout .elapsed{min-height:2.7em;font-size:22px;line-height:1.2;margin:11px 0 4px}
-#plants.grid-layout .elapsed span{display:block;font-size:10px;margin-top:2px}
-#plants.grid-layout .elapsed+.meta{min-height:2.7em}
+#plants.grid-layout .elapsed{display:block;font-size:18px;line-height:1.2;margin:7px 0 2px}
+#plants.grid-layout .elapsed span{display:block;font-size:9px;margin-top:1px}
 #plants.grid-layout .care-actions{gap:5px;margin-top:auto}
-#plants.grid-layout .care,#plants.grid-layout .quick-water{min-height:42px;font-size:11px;padding:9px 5px;white-space:normal}
+#plants.grid-layout .care,#plants.grid-layout .quick-water{min-height:40px;font-size:10px;padding:7px 4px;white-space:normal}
 @container (max-width:230px){
   .care-actions{grid-template-columns:1fr}
   .care,.quick-water{min-height:40px}
@@ -362,6 +373,7 @@ textarea{min-height:76px;resize:vertical}
   color-scheme:dark;
 }
 :root[data-theme="dark"] .menu-backup-status.due{background:#431407;color:#fdba74}
+:root[data-theme="dark"] .menu-panel button{border-color:transparent}
 :root[data-theme="dark"] .release-notice button{background:rgba(17,24,39,.86)}
 :root[data-theme="dark"] .plant-status.dormant{background:#422006;color:#fde68a}
 :root[data-theme="dark"] .weekday:first-child{color:#fca5a5}

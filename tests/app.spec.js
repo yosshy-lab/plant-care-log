@@ -551,6 +551,11 @@ test('端末設定に合わせてダークモードへ切り替わる', async ({
   await expect(page.locator('.view-switch')).toHaveCSS('border-top-color', 'rgb(100, 116, 139)');
   await expect(page.locator('.list-layout-switch')).toHaveCSS('border-top-color', 'rgb(100, 116, 139)');
 
+  await page.locator('#menuBtn').click();
+  await expect(page.locator('#helpBtn')).toHaveCSS('border-top-color', 'rgba(0, 0, 0, 0)');
+  await expect(page.locator('#themeSettingsBtn')).toHaveCSS('border-top-color', 'rgba(0, 0, 0, 0)');
+  await page.locator('#menuBtn').click();
+
   await page.locator('#addBtn').click();
   await expect(page.locator('#plantDialog')).toHaveCSS('background-color', 'rgb(17, 24, 39)');
   await expect(page.locator('#plantDialog')).toHaveCSS('border-top-color', 'rgb(51, 65, 85)');
@@ -558,6 +563,45 @@ test('端末設定に合わせてダークモードへ切り替わる', async ({
 
   await page.emulateMedia({ colorScheme: 'light' });
   await expect(page.locator('body')).toHaveCSS('background-color', 'rgb(243, 244, 246)');
+});
+
+test('株カードを余白の少ないレイアウトで表示する', async ({ page }) => {
+  const recentLog={id:'log-1',type:'水やり',time:Date.now()-3*60*60*1000,note:''};
+  await seed(page, plants.slice(0,2).map(plant=>({...plant,logs:[recentLog]})));
+  await page.goto('/');
+
+  const listCard=page.locator('.plant-card').first();
+  const listLayout=await listCard.evaluate(card=>{
+    const elapsed=card.querySelector('.elapsed');
+    const label=elapsed.querySelector('span');
+    const cardStyle=getComputedStyle(card);
+    const elapsedStyle=getComputedStyle(elapsed);
+    return {
+      cardPaddingTop:parseFloat(cardStyle.paddingTop),
+      elapsedFontSize:parseFloat(elapsedStyle.fontSize),
+      elapsedDisplay:elapsedStyle.display,
+      mainTop:elapsed.getBoundingClientRect().top,
+      labelTop:label.getBoundingClientRect().top
+    };
+  });
+  expect(listLayout.cardPaddingTop).toBeLessThanOrEqual(12);
+  expect(listLayout.elapsedFontSize).toBeLessThanOrEqual(22);
+  expect(listLayout.elapsedDisplay).toBe('flex');
+  expect(Math.abs(listLayout.mainTop-listLayout.labelTop)).toBeLessThan(10);
+
+  await page.locator('#gridLayoutBtn').click();
+  const gridLayout=await page.locator('.plant-card').first().evaluate(card=>{
+    const elapsed=card.querySelector('.elapsed');
+    const style=getComputedStyle(card);
+    return {
+      cardPaddingTop:parseFloat(style.paddingTop),
+      elapsedFontSize:parseFloat(getComputedStyle(elapsed).fontSize),
+      nameMinHeight:getComputedStyle(card.querySelector('.name')).minHeight
+    };
+  });
+  expect(gridLayout.cardPaddingTop).toBeLessThanOrEqual(10);
+  expect(gridLayout.elapsedFontSize).toBeLessThanOrEqual(18);
+  expect(gridLayout.nameMinHeight).toBe('0px');
 });
 
 test('メニューで表示テーマを選択して保存できる', async ({ page }) => {
