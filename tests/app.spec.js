@@ -297,6 +297,29 @@ test('カレンダーは日曜・土曜を区別して表示する', async ({ pa
   await expect(page.locator('.calendar-day.saturday').first()).toHaveCSS('background-color', 'rgb(245, 249, 255)');
 });
 
+test('今日へ戻るを年月の横へ小さく表示する', async ({ page }) => {
+  await seed(page);
+  await page.goto('/');
+  await page.locator('#calendarViewBtn').click();
+
+  const todayButton=page.locator('#todayBtn');
+  const title=page.locator('#calendarTitle');
+  await expect(todayButton).toBeVisible();
+  await expect(todayButton).toHaveText('今日へ戻る');
+  expect(await todayButton.evaluate(element=>element.parentElement?.classList.contains('calendar-title-group'))).toBe(true);
+
+  const [todayBox,titleBox,previousBox]=await Promise.all([
+    todayButton.boundingBox(),title.boundingBox(),page.locator('#prevMonth').boundingBox()
+  ]);
+  expect(todayBox && titleBox && previousBox).toBeTruthy();
+  expect(Math.abs((todayBox.y+todayBox.height/2)-(titleBox.y+titleBox.height/2))).toBeLessThanOrEqual(2);
+  expect(todayBox.height).toBeLessThan(previousBox.height);
+  const [todayFont,previousFont]=await Promise.all([
+    todayButton.evaluate(element=>parseFloat(getComputedStyle(element).fontSize)),
+    page.locator('#prevMonth').evaluate(element=>parseFloat(getComputedStyle(element).fontSize))
+  ]);
+  expect(todayFont).toBeLessThan(previousFont);
+});
 
 test('一覧の水やりは1件だけ記録し、連打時の重複を防ぐ', async ({ page }) => {
   await seed(page, [plants[0]]);

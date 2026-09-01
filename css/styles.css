@@ -165,7 +165,9 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .calendar-panel{background:var(--card);border:1px solid var(--card-border);border-radius:16px;padding:12px;box-shadow:var(--card-shadow)}
 .calendar-toolbar{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px}
 .calendar-toolbar button{padding:9px 12px}
-.calendar-title{font-size:18px;font-weight:800;text-align:center;flex:1}
+.calendar-title-group{display:flex;align-items:center;justify-content:center;gap:6px;flex:1;min-width:0}
+.calendar-title{font-size:18px;font-weight:800;text-align:center}
+.calendar-toolbar .calendar-today-button{width:auto;padding:4px 7px;border-radius:999px;font-size:10px;line-height:1.2;font-weight:700;white-space:nowrap}
 .calendar-filters{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
 .calendar-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
 .weekday{text-align:center;color:var(--muted);font-size:12px;font-weight:700;padding:5px 0;border-radius:8px}

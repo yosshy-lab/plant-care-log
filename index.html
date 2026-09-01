@@ -39,7 +39,7 @@
 <link rel="icon" type="image/png" href="./apple-touch-icon.png">
 <title>塊根植物記録</title>
 <script src="./js/analytics.js?v=1.10.0"></script>
-<link rel="stylesheet" href="./css/styles.css?v=1.10.0">
+<link rel="stylesheet" href="./css/styles.css?v=1.10.0-r2">
 </head>
 <body>
 <div class="wrap">
@@ -130,7 +130,10 @@
     <div class="calendar-panel">
       <div class="calendar-toolbar">
         <button class="secondary" id="prevMonth" aria-label="前の月">‹</button>
-        <div id="calendarTitle" class="calendar-title"></div>
+        <div class="calendar-title-group">
+          <div id="calendarTitle" class="calendar-title"></div>
+          <button class="secondary calendar-today-button" id="todayBtn">今日へ戻る</button>
+        </div>
         <button class="secondary" id="nextMonth" aria-label="次の月">›</button>
       </div>
       <div class="calendar-filters">
@@ -141,7 +144,6 @@
           <option>施肥</option><option>状態・写真記録</option>
         </select>
       </div>
-      <button class="secondary" id="todayBtn">今日へ戻る</button>
       <div class="calendar-legend">
         <span class="legend-item"><i class="event-dot water"></i>水やり</span>
         <span class="legend-item"><i class="event-dot pesticide"></i>薬剤</span>
