@@ -1,4 +1,4 @@
-const APP_VERSION='1.9.0';
+const APP_VERSION='1.10.0';
 const KEY='plant-care-log-v1';
 const WEATHER_KEY='plant-care-weather-v1';
 const LIST_LAYOUT_KEY='plant-care-list-layout-v1';
@@ -8,6 +8,11 @@ const RELEASE_SEEN_KEY='plant-care-release-seen-v1';
 const BACKUP_REMINDER_MS=30*24*60*60*1000;
 const FIRST_BACKUP_REMINDER_MS=7*24*60*60*1000;
 const LEGACY_KEYS=['pachypodium-water-log-v2','pachypodium-water-log-v1'];
+
+function normalizePlantTags(value){
+  if(!Array.isArray(value)) return [];
+  return [...new Set(value.map(tag=>String(tag).trim()).filter(Boolean))].slice(0,50);
+}
 
 function loadBackupMeta(){
   try{
@@ -77,6 +82,7 @@ function validateBackup(input){
     ids.add(id);
     if('logs' in plant && !Array.isArray(plant.logs)) return false;
     if('plans' in plant && !Array.isArray(plant.plans)) return false;
+    if('tags' in plant && (!Array.isArray(plant.tags) || !plant.tags.every(tag=>typeof tag==='string'))) return false;
     const validLogs=(plant.logs || []).every(log=>
       log && typeof log==='object' && Number.isFinite(Number(log.time)) &&
       (!('care' in log) || typeof log.care==='string')
@@ -92,6 +98,7 @@ function validateBackup(input){
   return {
     plants:input.plants.map(plant=>({
       ...plant,
+      tags:normalizePlantTags(plant.tags),
       logs:Array.isArray(plant.logs)?plant.logs:[],
       plans:Array.isArray(plant.plans)?plant.plans:[]
     })),
@@ -118,6 +125,7 @@ function readStoredData(key){
     return {
       plants:parsed.plants.map(plant=>({
         ...plant,
+        tags:normalizePlantTags(plant.tags),
         logs:Array.isArray(plant.logs)?plant.logs:[],
         plans:Array.isArray(plant.plans)?plant.plans:[]
       })),

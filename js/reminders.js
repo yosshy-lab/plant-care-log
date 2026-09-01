@@ -24,6 +24,7 @@ function renderRemindersList(){
       <div class="plan-repeat">${esc(recurrenceText(reminder.recurrence))}</div>
       ${reminder.memo?`<div class="history-note reminder-memo">${esc(reminder.memo)}</div>`:''}
       <div class="history-actions">
+        <button class="secondary" type="button" onclick="exportGlobalReminder('${esc(String(reminder.id))}')">カレンダー</button>
         <button class="secondary" type="button" onclick="editReminder('${esc(String(reminder.id))}')">編集</button>
         <button class="danger" type="button" onclick="removeReminder('${esc(String(reminder.id))}')">削除</button>
       </div>

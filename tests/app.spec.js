@@ -25,7 +25,7 @@ test('主要画面がJavaScriptエラーなく表示される', async ({ page })
   page.on('pageerror', error => errors.push(error.message));
   await page.goto('/');
   await expect(page).toHaveTitle('塊根植物記録');
-  await expect(page.locator('#appVersionDisplay')).toHaveText('v1.9.0');
+  await expect(page.locator('#appVersionDisplay')).toHaveText('v1.10.0');
   await expect(page.locator('#addBtn')).toBeVisible();
   await expect(page.locator('#plantSearch')).toBeVisible();
   await expect(page.locator('#calendarViewBtn')).toBeVisible();
@@ -71,13 +71,13 @@ test('更新案内は新バージョンの初回だけ表示しメニューか�
   await seed(page);
   await page.goto('/');
   await expect(page.locator('#releaseNotice')).toBeVisible();
-  await expect(page.locator('#releaseNotice')).toContainText('v1.9.0 更新');
-  await expect(page.locator('#releaseNotice')).toContainText('カレンダー編集と表示テーマを追加');
+  await expect(page.locator('#releaseNotice')).toContainText('v1.10.0 更新');
+  await expect(page.locator('#releaseNotice')).toContainText('タグ・一括編集とカレンダー連携を追加');
 
   await page.locator('#releaseNoticeDetails').click();
   await expect(page.locator('#releaseNotesDialog')).toBeVisible();
-  await expect(page.locator('#releaseNotesList')).toContainText('v1.9.0');
-  await expect(page.locator('#releaseNotesList')).not.toContainText('v1.8.1');
+  await expect(page.locator('#releaseNotesList')).toContainText('v1.10.0');
+  await expect(page.locator('#releaseNotesList')).not.toContainText('v1.9.0');
   await expect(page.locator('#releaseNotesHint')).toContainText('今回のアップデート内容');
   await page.locator('#closeReleaseNotes').click();
 
@@ -87,6 +87,7 @@ test('更新案内は新バージョンの初回だけ表示しメニューか�
   await page.locator('#menuBtn').click();
   await page.locator('#releaseNotesBtn').click();
   await expect(page.locator('#releaseNotesDialog')).toBeVisible();
+  await expect(page.locator('#releaseNotesList')).toContainText('v1.10.0');
   await expect(page.locator('#releaseNotesList')).toContainText('v1.9.0');
   await expect(page.locator('#releaseNotesList')).toContainText('v1.8.1');
   await expect(page.locator('#releaseNotesList')).toContainText('v1.8.0');
@@ -103,11 +104,14 @@ test('植物を登録し、保存後も表示できる', async ({ page }) => {
   await page.locator('#plantType').fill('Pachypodium test');
   await page.locator('#plantStage').selectOption({ label: '実生' });
   await page.locator('#plantManagementStatus').selectOption('dormant');
+  await page.locator('#cultivationSection > summary').click();
+  await page.locator('#plantTags').fill('実生2026, 要観察');
   await page.locator('#savePlant').click();
 
   const card = page.locator('.plant-card', { hasText: 'テスト実生' });
   await expect(card).toBeVisible();
   await expect(card).toContainText('休眠中');
+  await expect(card).toContainText('実生2026');
   await page.reload();
   await expect(page.locator('.plant-card', { hasText: 'テスト実生' })).toBeVisible();
 });
@@ -230,6 +234,45 @@ test('検索・生育区分・管理状態で絞り込める', async ({ page }) 
   await expect(page.locator('.plant-card')).toContainText('管理終了株');
 });
 
+test('タグで株を整理し、選択した株だけをまとめて編集できる', async ({ page }) => {
+  const taggedPlants = [
+    { ...plants[0], tags: ['屋外', '実生2026'] },
+    { ...plants[1], tags: ['室内'] },
+    { ...plants[2], tags: [] }
+  ];
+  await seed(page, taggedPlants);
+  await page.goto('/');
+
+  await page.locator('#plantTagFilter').selectOption({ label: '屋外' });
+  await expect(page.locator('.plant-card')).toHaveCount(1);
+  await expect(page.locator('.plant-card')).toContainText('グラキリス');
+  await page.locator('#plantTagFilter').selectOption('');
+
+  await page.locator('#menuBtn').click();
+  await page.locator('#batchEditBtn').click();
+  await expect(page.locator('#batchEditDialog')).toBeVisible();
+  await page.locator('.batch-edit-plant-check[value="a"]').check();
+  await page.locator('.batch-edit-plant-check[value="b"]').check();
+  await page.locator('#batchEditTagsEnabled').check();
+  await page.locator('#batchEditTagsAction').selectOption('add');
+  await page.locator('#batchEditTags').fill('要観察, 屋外');
+  await page.locator('#batchEditLocationEnabled').check();
+  await page.locator('#batchEditLocation').fill('温室棚');
+  await page.locator('#saveBatchEdit').click();
+
+  const saved = await page.evaluate(key => JSON.parse(localStorage.getItem(key)), storageKey);
+  expect(saved.plants[0].tags).toEqual(['屋外', '実生2026', '要観察']);
+  expect(saved.plants[1].tags).toEqual(['室内', '要観察', '屋外']);
+  expect(saved.plants[0].location).toBe('温室棚');
+  expect(saved.plants[1].location).toBe('温室棚');
+  expect(saved.plants[2].location).toBe('温室');
+  expect(saved.plants[2].tags).toEqual([]);
+
+  await page.locator('#plantStatusFilter').selectOption('all');
+  await page.locator('#plantTagFilter').selectOption({ label: '要観察' });
+  await expect(page.locator('.plant-card')).toHaveCount(2);
+});
+
 test('株の並び順を変更して保持できる', async ({ page }) => {
   await seed(page, plants.map(plant => ({ ...plant, managementStatus: 'active' })));
   await page.goto('/');
@@ -326,7 +369,7 @@ test('バックアップに件数とバージョン情報を含めて保存す�
   expect(payload).toMatchObject({
     format: 'plant-care-log-backup',
     schemaVersion: 1,
-    appVersion: '1.9.0'
+    appVersion: '1.10.0'
   });
   expect(payload.plants).toHaveLength(3);
   expect(payload.reminders).toEqual([reminder]);
@@ -857,6 +900,43 @@ test('株を選ばず隔週の備忘録を登録してカレンダーに表示�
 
   await page.evaluate(() => window.selectCalendarDate('2099-01-08'));
   await expect(page.locator('#calendarDayDetails')).not.toContainText('液肥');
+});
+
+test('ケア予定と備忘録を繰り返し設定付きのiCalendar形式で書き出す', async ({ page }) => {
+  const plan = {
+    id: 'calendar-export-plan',
+    startAt: new Date('2099-01-01T09:00').getTime(),
+    care: '水やり',
+    type: '通常',
+    fertilizer: 'なし',
+    details: {},
+    note: '乾き具合を確認',
+    recurrence: { unit: 'week', interval: 2 }
+  };
+  const reminder = {
+    id: 'calendar-export-reminder',
+    title: '液肥の日',
+    startAt: new Date('2099-01-05T10:30').getTime(),
+    memo: '2000倍',
+    recurrence: { unit: 'month', interval: 2 }
+  };
+  await seed(page, [{ ...plants[0], plans: [plan], logs: [] }], [reminder]);
+  await page.goto('/');
+  await page.locator('#menuBtn').click();
+  await page.locator('#calendarExportBtn').click();
+  await expect(page.locator('#calendarExportSummary')).toContainText('ケア予定 1件・備忘録 1件');
+
+  const downloadPromise = page.waitForEvent('download');
+  await page.locator('#saveCalendarExport').click();
+  const download = await downloadPromise;
+  expect(download.suggestedFilename()).toMatch(/^plant-care-plans-\d{4}-\d{2}-\d{2}\.ics$/);
+  const calendar = await readFile(await download.path(), 'utf8');
+  expect(calendar).toContain('BEGIN:VCALENDAR');
+  expect(calendar).toContain('SUMMARY:[塊根植物記録] グラキリス・水やり');
+  expect(calendar).toContain('SUMMARY:[塊根植物記録] 液肥の日');
+  expect(calendar).toContain('RRULE:FREQ=WEEKLY;INTERVAL=2');
+  expect(calendar).toContain('RRULE:FREQ=MONTHLY;INTERVAL=2');
+  expect(calendar).toContain('END:VCALENDAR');
 });
 
 test('備忘録を編集・削除できる', async ({ page }) => {

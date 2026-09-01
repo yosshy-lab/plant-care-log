@@ -145,12 +145,16 @@ function renderCalendarDayDetails(){
     if(event.globalReminder){
       return `<div class="calendar-entry reminder-entry"><div class="entry-title">📝 ${esc(event.reminder.title)}</div>
         <div class="entry-meta">${esc(recurrenceText(event.reminder.recurrence))}${event.reminder.memo?`<br>${esc(event.reminder.memo)}`:''}</div>
-        <button class="secondary calendar-entry-edit" type="button" onclick="editReminder('${esc(String(event.reminder.id))}')">編集</button></div>`;
+        <div class="calendar-entry-actions">
+          <button class="secondary" type="button" onclick="exportGlobalReminder('${esc(String(event.reminder.id))}')">カレンダー</button>
+          <button class="secondary calendar-entry-edit" type="button" onclick="editReminder('${esc(String(event.reminder.id))}')">編集</button>
+        </div></div>`;
     }
     if(event.carePlan){
       return `<div class="calendar-entry calendar-plan-entry"><div class="entry-title">⏰ ${esc(event.plant.name)}・${esc(event.care)}予定</div>
         <div class="entry-meta">${careDetailHtml(event.log)}<br>${esc(recurrenceText(event.log.recurrence))}</div>
         <div class="calendar-entry-actions">
+          <button class="secondary" type="button" onclick="exportPlantCarePlan('${esc(String(event.plant.id))}','${esc(String(event.log.id))}')">カレンダー</button>
           <button class="secondary calendar-entry-edit" type="button" onclick="editPlan('${esc(String(event.plant.id))}','${esc(String(event.log.id))}','calendar')">編集</button>
           <button class="danger calendar-entry-delete" type="button" onclick="removePlan('${esc(String(event.plant.id))}','${esc(String(event.log.id))}','calendar')">削除</button>
         </div></div>`;

@@ -47,6 +47,14 @@ function initializeTheme(){
 
 const RELEASE_NOTES=[
   {
+    version:'1.10.0',date:'2026年9月1日',title:'タグ・一括編集とカレンダー連携を追加',
+    items:[
+      '株へ複数のタグを登録し、検索やタグ絞り込みに利用できるようになりました。',
+      '複数株のタグ、管理場所、生育区分、管理状態をまとめて変更できるようになりました。',
+      'ケア予定と備忘録を、iPhoneやMacのカレンダーで開けるiCalendar（.ics）形式で書き出せるようになりました。'
+    ]
+  },
+  {
     version:'1.9.0',date:'2026年8月26日',title:'カレンダー編集と表示テーマを追加',
     items:[
       'カレンダー上の登録済みケアとケア予定を、その場で編集・削除できるようになりました。',
@@ -248,26 +256,50 @@ function plantStatusBadge(plant){
   return '';
 }
 
+function parsePlantTags(value){
+  return normalizePlantTags(String(value || '').split(/[,、\n]/));
+}
+
+function plantTagsHtml(plant,{limit=4}={}){
+  const tags=normalizePlantTags(plant.tags);
+  if(!tags.length) return '';
+  const visible=tags.slice(0,limit);
+  const more=tags.length>limit?`<span class="plant-tag more">＋${tags.length-limit}</span>`:'';
+  return `<div class="plant-tags">${visible.map(tag=>`<span class="plant-tag">${esc(tag)}</span>`).join('')}${more}</div>`;
+}
+
+function renderPlantTagFilter(){
+  const select=$('plantTagFilter');
+  const current=select.value;
+  const tags=[...new Set(data.plants.flatMap(plant=>normalizePlantTags(plant.tags)))]
+    .sort((a,b)=>a.localeCompare(b,'ja'));
+  select.innerHTML='<option value="">すべてのタグ</option>'+tags.map(tag=>`<option value="${esc(tag)}">${esc(tag)}</option>`).join('');
+  select.value=tags.includes(current)?current:'';
+}
+
 function filteredPlants(){
   const query=$('plantSearch').value.trim().toLocaleLowerCase('ja-JP');
   const statusFilter=$('plantStatusFilter').value;
   const stageFilter=$('plantStageFilter').value;
+  const tagFilter=$('plantTagFilter').value;
   return data.plants.filter(plant=>{
     const status=plantManagementStatus(plant);
     const statusMatch=statusFilter==='all' ||
       (statusFilter==='current' && status!=='ended') ||
       status===statusFilter;
     const stageMatch=!stageFilter || (plant.stage || '成株')===stageFilter;
-    const searchTarget=[plant.name,plant.type,plant.location,plant.source,plant.memo]
+    const tagMatch=!tagFilter || normalizePlantTags(plant.tags).includes(tagFilter);
+    const searchTarget=[plant.name,plant.type,plant.location,plant.source,plant.memo,...normalizePlantTags(plant.tags)]
       .filter(Boolean).join(' ').toLocaleLowerCase('ja-JP');
     const queryMatch=!query || searchTarget.includes(query);
-    return statusMatch && stageMatch && queryMatch;
+    return statusMatch && stageMatch && tagMatch && queryMatch;
   });
 }
 
 function render(){
   const root=$('plants');
   applyListLayout();
+  renderPlantTagFilter();
   if(!data.plants.length){
     $('filterResultCount').textContent='';
     root.innerHTML='<div class="card empty">まだ植物がありません。<br>「＋ 植物を追加」から登録してください。</div>';
@@ -299,6 +331,7 @@ function render(){
       <div class="plant-summary">
         <div class="name">${esc(p.name)}</div>
         <div class="meta">${esc(p.stage || '成株')}${p.type?` ・ ${esc(p.type)}`:''}${plantStatusBadge(p)}</div>
+        ${plantTagsHtml(p)}
       </div>
       <div class="elapsed">${e.main} <span>${e.sub}</span></div>
       <div class="meta">前回：${fmtDate(last?.time)}</div>
@@ -339,6 +372,7 @@ $('gridLayoutBtn').onclick=()=>setListLayout('grid');
 $('plantSearch').oninput=render;
 $('plantStatusFilter').onchange=render;
 $('plantStageFilter').onchange=render;
+$('plantTagFilter').onchange=render;
 
 function handlePlantCardClick(id,event){
   if(event.target.closest('button,.menu-panel')) return;
@@ -383,6 +417,7 @@ function openPlantDetails(id){
     detailItem('播種日',p.sowingDate?dateOnly(p.sowingDate):''),
     detailItem('発芽日',p.germinationDate?dateOnly(p.germinationDate):''),
     detailItem('管理場所',p.location?esc(p.location):''),
+    detailItem('タグ',plantTagsHtml(p,{limit:50}),true),
     detailItem('雨の当たり方',p.rainExposure==='sheltered'?'雨が当たらない':'雨が当たる'),
     detailItem('メモ',p.memo?`<span class="detail-note">${esc(p.memo)}</span>`:'',true)
   ].join('');
@@ -441,7 +476,7 @@ let editingPlantPhotoChanged=false;
 
 const PLANT_FIELD_IDS=[
   'plantName','plantType','plantAcquiredDate','plantSource','plantPrice',
-  'plantSowingDate','plantGerminationDate','plantLocation','plantMemo'
+  'plantSowingDate','plantGerminationDate','plantLocation','plantTags','plantMemo'
 ];
 
 function togglePlantConditionalFields(){
@@ -500,12 +535,13 @@ window.openPlantEditor=id=>{
   $('plantSowingDate').value=p.sowingDate || '';
   $('plantGerminationDate').value=p.germinationDate || '';
   $('plantLocation').value=p.location || '';
+  $('plantTags').value=normalizePlantTags(p.tags).join(', ');
   $('plantRainExposure').value=p.rainExposure || 'rain';
   $('plantMemo').value=p.memo || '';
   editingPlantPhotoId=p.photoId || '';
   setPlantPhotoPreview(p.photo || '');
   $('acquisitionSection').open=Boolean(p.acquiredDate || p.acquisitionMethod || p.source || p.price || p.origin);
-  $('cultivationSection').open=Boolean(p.sowingDate || p.germinationDate || p.location || p.memo || p.photo || p.rainExposure==='sheltered');
+  $('cultivationSection').open=Boolean(p.sowingDate || p.germinationDate || p.location || normalizePlantTags(p.tags).length || p.memo || p.photo || p.rainExposure==='sheltered');
   if(p.createdAt){
     $('plantRecordMeta').hidden=false;
     $('plantRecordMeta').textContent=`登録：${fmtDate(p.createdAt)}${p.updatedAt?`　更新：${fmtDate(p.updatedAt)}`:''}`;
@@ -562,6 +598,7 @@ $('savePlant').onclick=async()=>{
     sowingDate:['実生','播種'].includes($('plantStage').value)?$('plantSowingDate').value:'',
     germinationDate:['実生','播種'].includes($('plantStage').value)?$('plantGerminationDate').value:'',
     location:$('plantLocation').value.trim(),
+    tags:parsePlantTags($('plantTags').value),
     rainExposure:$('plantRainExposure').value,
     memo:$('plantMemo').value.trim(),
     photo:editingPlantPhoto,
@@ -990,6 +1027,7 @@ function showPlans(id){
       <div class="plan-repeat">${esc(recurrenceText(plan.recurrence))}</div>
       <div class="history-note">${careDetailHtml(plan)}</div>
       <div class="history-actions">
+        <button class="secondary" type="button" onclick="exportPlantCarePlan('${p.id}','${esc(String(plan.id))}')">カレンダー</button>
         <button class="secondary" type="button" onclick="editPlan('${p.id}','${esc(String(plan.id))}')">編集</button>
         <button class="danger" type="button" onclick="removePlan('${p.id}','${esc(String(plan.id))}')">削除</button>
       </div>
@@ -1075,6 +1113,109 @@ $('saveReorderPlants').onclick=()=>{
     trackPlantCareEvent('plants_reordered',{plant_count:reordered.length});
   }else{
     data.plants=previous;
+    render();
+  }
+};
+
+function batchEditChangeEnabled(){
+  return ['batchEditTagsEnabled','batchEditLocationEnabled','batchEditStageEnabled','batchEditStatusEnabled']
+    .some(id=>$(id).checked);
+}
+
+function updateBatchEditControls(){
+  const checks=[...document.querySelectorAll('.batch-edit-plant-check')];
+  const selected=checks.filter(input=>input.checked).length;
+  const hasChange=batchEditChangeEnabled();
+  $('saveBatchEdit').disabled=!selected || !hasChange;
+  $('saveBatchEdit').textContent=!selected
+    ?'株を選択してください'
+    :hasChange?`選択した${selected}株を更新`:'変更項目を選択してください';
+  $('batchEditSelectAll').textContent=checks.length && selected===checks.length?'選択を解除':'すべて選択';
+  $('batchEditTagsFields').hidden=!$('batchEditTagsEnabled').checked;
+  $('batchEditLocation').hidden=!$('batchEditLocationEnabled').checked;
+  $('batchEditStage').hidden=!$('batchEditStageEnabled').checked;
+  $('batchEditStatus').hidden=!$('batchEditStatusEnabled').checked;
+}
+
+function openBatchEdit(){
+  closeDataMenu();
+  if(!data.plants.length) return alert('編集できる植物がありません。');
+  $('batchEditPlantList').innerHTML=data.plants.map(plant=>`
+    <label class="batch-plant-row">
+      <input class="batch-edit-plant-check" type="checkbox" value="${esc(String(plant.id))}">
+      <span>
+        <span class="batch-plant-name">${esc(plant.name)}</span>
+        <span class="batch-plant-meta">${esc(plant.stage || '成株')}${plant.location?` ・ ${esc(plant.location)}`:''}</span>
+        ${plantTagsHtml(plant,{limit:6})}
+      </span>
+    </label>`).join('');
+  ['batchEditTagsEnabled','batchEditLocationEnabled','batchEditStageEnabled','batchEditStatusEnabled']
+    .forEach(id=>{ $(id).checked=false; });
+  $('batchEditTagsAction').value='add';
+  $('batchEditTags').value='';
+  $('batchEditLocation').value='';
+  $('batchEditStage').value='成株';
+  $('batchEditStatus').value='active';
+  updateBatchEditControls();
+  $('batchEditDialog').showModal();
+}
+
+$('batchEditBtn').onclick=openBatchEdit;
+$('batchEditPlantList').onchange=updateBatchEditControls;
+['batchEditTagsEnabled','batchEditLocationEnabled','batchEditStageEnabled','batchEditStatusEnabled']
+  .forEach(id=>$(id).onchange=updateBatchEditControls);
+$('batchEditSelectAll').onclick=()=>{
+  const checks=[...document.querySelectorAll('.batch-edit-plant-check')];
+  const shouldSelect=!checks.every(input=>input.checked);
+  checks.forEach(input=>{ input.checked=shouldSelect; });
+  updateBatchEditControls();
+};
+$('cancelBatchEdit').onclick=()=> $('batchEditDialog').close();
+$('saveBatchEdit').onclick=()=>{
+  const ids=new Set([...document.querySelectorAll('.batch-edit-plant-check:checked')].map(input=>input.value));
+  const targets=data.plants.filter(plant=>ids.has(String(plant.id)));
+  if(!targets.length) return;
+  if(!batchEditChangeEnabled()) return alert('変更する項目を選択してください。');
+
+  const tagsEnabled=$('batchEditTagsEnabled').checked;
+  const tagsAction=$('batchEditTagsAction').value;
+  const tags=parsePlantTags($('batchEditTags').value);
+  if(tagsEnabled && tagsAction!=='replace' && !tags.length) return alert('追加または削除するタグを入力してください。');
+
+  const previous=targets.map(plant=>({
+    plant,
+    tags:normalizePlantTags(plant.tags),
+    location:plant.location || '',
+    stage:plant.stage || '成株',
+    managementStatus:plantManagementStatus(plant),
+    updatedAt:plant.updatedAt
+  }));
+  const now=Date.now();
+  targets.forEach(plant=>{
+    if(tagsEnabled){
+      const current=normalizePlantTags(plant.tags);
+      if(tagsAction==='add') plant.tags=normalizePlantTags([...current,...tags]);
+      else if(tagsAction==='remove') plant.tags=current.filter(tag=>!tags.includes(tag));
+      else plant.tags=tags;
+    }
+    if($('batchEditLocationEnabled').checked) plant.location=$('batchEditLocation').value.trim();
+    if($('batchEditStageEnabled').checked) plant.stage=$('batchEditStage').value;
+    if($('batchEditStatusEnabled').checked) plant.managementStatus=$('batchEditStatus').value;
+    plant.updatedAt=now;
+  });
+
+  if(save()){
+    $('batchEditDialog').close();
+    toast(`${targets.length}株をまとめて更新しました`);
+    trackPlantCareEvent('plants_batch_updated',{plant_count:targets.length});
+  }else{
+    previous.forEach(item=>Object.assign(item.plant,{
+      tags:item.tags,
+      location:item.location,
+      stage:item.stage,
+      managementStatus:item.managementStatus,
+      updatedAt:item.updatedAt
+    }));
     render();
   }
 };

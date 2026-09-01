@@ -38,8 +38,8 @@
 <link rel="apple-touch-icon" sizes="180x180" href="./apple-touch-icon.png">
 <link rel="icon" type="image/png" href="./apple-touch-icon.png">
 <title>塊根植物記録</title>
-<script src="./js/analytics.js?v=1.9.0-r2"></script>
-<link rel="stylesheet" href="./css/styles.css?v=1.9.0-r4">
+<script src="./js/analytics.js?v=1.10.0"></script>
+<link rel="stylesheet" href="./css/styles.css?v=1.10.0">
 </head>
 <body>
 <div class="wrap">
@@ -58,7 +58,9 @@
         <button id="batchShortcutBtn" role="menuitem">まとめて水やりURLをコピー</button>
         <button id="batchPlanBtn" role="menuitem">まとめてケア予定</button>
         <button id="remindersBtn" role="menuitem">備忘録・予定</button>
+        <button id="calendarExportBtn" role="menuitem">予定をカレンダーへ書き出す</button>
         <button id="reorderPlantsBtn" role="menuitem">株を並べ替える</button>
+        <button id="batchEditBtn" role="menuitem">株をまとめて編集</button>
         <div class="menu-separator" role="separator"></div>
         <button id="themeSettingsBtn" role="menuitem">表示テーマ：自動</button>
         <button id="weatherSettingsBtn" role="menuitem">天気・位置設定</button>
@@ -117,6 +119,9 @@
         <option value="">すべての生育区分</option>
         <option>成株</option><option>実生</option><option>播種</option>
       </select>
+      <select id="plantTagFilter" aria-label="タグで絞り込み">
+        <option value="">すべてのタグ</option>
+      </select>
     </div>
     <div id="filterResultCount" class="filter-result-count" aria-live="polite"></div>
     <div id="plants"></div>
@@ -171,6 +176,7 @@
       <summary>植物の登録・編集</summary>
       <div class="help-section-body">
         <p>管理名と生育区分を設定します。種類、入手日、購入先、播種日、発芽日、管理場所、写真などは必要に応じて追加できます。</p>
+        <p>タグはカンマ区切りで複数登録できます。右上メニューの「株をまとめて編集」では、複数株へのタグ追加・削除・置換や、管理場所・生育区分・管理状態の一括変更ができます。</p>
         <p>登録後は植物カードをタップし、詳細画面の「編集」から変更できます。</p>
       </div>
     </details>
@@ -196,6 +202,7 @@
         <p>管理終了にした株は通常一覧から非表示になります。「管理終了のみ」または「すべての管理状態」で再表示できます。</p>
         <p>右上メニューの「株を並べ替える」から、一覧やまとめて水やりに表示する順序を変更できます。</p>
         <p>カレンダーではケア履歴や予定、取得済みの降水量を日付ごとに確認できます。</p>
+        <p>ケア予定や備忘録は、個別またはまとめてiCalendar（.ics）ファイルへ書き出し、iPhoneやMacのカレンダーへ追加できます。アプリ内の変更は、追加済みのカレンダー予定へ自動同期されません。</p>
       </div>
     </details>
     <details class="help-section">
@@ -348,6 +355,9 @@
         </div>
         <label>管理場所</label>
         <input id="plantLocation" placeholder="例：屋外棚 上段、室内窓辺">
+        <label>タグ</label>
+        <input id="plantTags" placeholder="例：雨ざらし, 実生2026, 要観察">
+        <div class="field-help">複数のタグはカンマ（,）で区切ってください。</div>
         <label>雨の当たり方</label>
         <select id="plantRainExposure">
           <option value="rain">雨が当たる</option>
@@ -598,6 +608,62 @@
   </div>
 </dialog>
 
+<dialog id="batchEditDialog">
+  <div class="modal">
+    <div class="batch-header">
+      <h2>株をまとめて編集</h2>
+      <button class="secondary batch-select-all" id="batchEditSelectAll">すべて選択</button>
+    </div>
+    <p class="hint">対象株と変更する項目を選んでください。選択していない項目は変更されません。</p>
+    <div id="batchEditPlantList" class="batch-plant-list"></div>
+    <div class="batch-edit-fields">
+      <label class="batch-edit-option"><input id="batchEditTagsEnabled" type="checkbox"><span>タグを変更</span></label>
+      <div id="batchEditTagsFields" class="batch-edit-field" hidden>
+        <select id="batchEditTagsAction" aria-label="タグの変更方法">
+          <option value="add">タグを追加</option>
+          <option value="remove">タグを削除</option>
+          <option value="replace">すべて置き換え</option>
+        </select>
+        <input id="batchEditTags" placeholder="例：屋外棚, 雨ざらし">
+      </div>
+      <label class="batch-edit-option"><input id="batchEditLocationEnabled" type="checkbox"><span>管理場所を変更</span></label>
+      <input id="batchEditLocation" class="batch-edit-field" placeholder="空欄で管理場所を削除" hidden>
+      <label class="batch-edit-option"><input id="batchEditStageEnabled" type="checkbox"><span>生育区分を変更</span></label>
+      <select id="batchEditStage" class="batch-edit-field" hidden>
+        <option>成株</option><option>実生</option><option>播種</option>
+      </select>
+      <label class="batch-edit-option"><input id="batchEditStatusEnabled" type="checkbox"><span>管理状態を変更</span></label>
+      <select id="batchEditStatus" class="batch-edit-field" hidden>
+        <option value="active">管理中</option>
+        <option value="dormant">休眠中</option>
+        <option value="ended">管理終了</option>
+      </select>
+    </div>
+    <div class="actions">
+      <button class="secondary" id="cancelBatchEdit">キャンセル</button>
+      <button id="saveBatchEdit" disabled>株を選択してください</button>
+    </div>
+  </div>
+</dialog>
+
+<dialog id="calendarExportDialog">
+  <div class="modal">
+    <h2>予定をカレンダーへ書き出す</h2>
+    <p id="calendarExportSummary" class="hint"></p>
+    <label>書き出す予定</label>
+    <select id="calendarExportScope">
+      <option value="all">ケア予定と備忘録</option>
+      <option value="plans">ケア予定のみ</option>
+      <option value="reminders">備忘録のみ</option>
+    </select>
+    <div class="help-callout">iCalendar（.ics）ファイルを開くと、iPhoneやMacのカレンダーへ追加できます。アプリ内で予定を変更しても、追加済みのカレンダー予定には自動反映されません。同じファイルを繰り返し追加すると重複する場合があります。</div>
+    <div class="actions">
+      <button class="secondary" id="cancelCalendarExport">キャンセル</button>
+      <button id="saveCalendarExport">カレンダー用ファイルを作成</button>
+    </div>
+  </div>
+</dialog>
+
 <dialog id="calendarCarePlantDialog">
   <div class="modal">
     <h2 id="calendarCarePlantTitle">ケアを追加</h2>
@@ -645,12 +711,13 @@
   </div>
 </dialog>
 
-<script src="./js/storage.js?v=1.9.0-r2"></script>
-<script src="./js/photo-storage.js?v=1.9.0-r2"></script>
-<script src="./js/ui.js?v=1.9.0-r2"></script>
-<script src="./js/reminders.js?v=1.9.0-r2"></script>
-<script src="./js/calendar.js?v=1.9.0-r2"></script>
-<script src="./js/weather.js?v=1.9.0-r2"></script>
-<script src="./js/app.js?v=1.9.0-r2"></script>
+<script src="./js/storage.js?v=1.10.0"></script>
+<script src="./js/photo-storage.js?v=1.10.0"></script>
+<script src="./js/ui.js?v=1.10.0"></script>
+<script src="./js/reminders.js?v=1.10.0"></script>
+<script src="./js/calendar.js?v=1.10.0"></script>
+<script src="./js/calendar-export.js?v=1.10.0"></script>
+<script src="./js/weather.js?v=1.10.0"></script>
+<script src="./js/app.js?v=1.10.0"></script>
 </body>
 </html>
