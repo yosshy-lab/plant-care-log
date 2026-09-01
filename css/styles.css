@@ -395,6 +395,7 @@ textarea{min-height:76px;resize:vertical}
 }
 :root[data-theme="dark"] .menu-backup-status.due{background:#431407;color:#fdba74}
 :root[data-theme="dark"] .menu-panel button{border-color:transparent}
+:root[data-theme="dark"] .list-add-button{border-color:var(--button-border)}
 :root[data-theme="dark"] .release-notice button{background:rgba(17,24,39,.86)}
 :root[data-theme="dark"] .plant-status.dormant{background:#422006;color:#fde68a}
 :root[data-theme="dark"] .weekday:first-child{color:#fca5a5}
