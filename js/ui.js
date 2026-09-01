@@ -660,6 +660,7 @@ function toggleCareFields(){
 let editingLogIndex=null;
 let editingPlanId=null;
 let careMode='record';
+let batchCarePlantIds=[];
 let batchPlanPlantIds=[];
 let careReturnTo='';
 let editingCarePhoto='';
@@ -725,7 +726,8 @@ window.openCare=(id,options={})=>{
   const p=data.plants.find(x=>String(x.id)===String(id));
   if(!p) return;
   if(plantManagementStatus(p)==='ended') return toast('管理終了した株には記録できません');
-  careMode=options.mode==='batch-plan'?'batch-plan':options.mode==='plan'?'plan':'record';
+  careMode=options.mode==='batch-record'?'batch-record':options.mode==='batch-plan'?'batch-plan':options.mode==='plan'?'plan':'record';
+  batchCarePlantIds=careMode==='batch-record'?(options.plantIds || []).map(String):[];
   batchPlanPlantIds=careMode==='batch-plan'?(options.plantIds || []).map(String):[];
   careReturnTo=options.returnTo || '';
   const planning=careMode==='plan' || careMode==='batch-plan';
@@ -736,7 +738,7 @@ window.openCare=(id,options={})=>{
     ?(p.plans || []).find(plan=>String(plan.id)===editingPlanId)
     :careMode==='batch-plan'?null:(editingLogIndex===null?null:p.logs?.[editingLogIndex]);
   $('recurrenceFields').hidden=!planning;
-  $('carePhotoFields').hidden=planning;
+  $('carePhotoFields').hidden=planning || careMode==='batch-record';
   $('careDateLabel').textContent=planning?'予定日時':'記録日時';
   $('careDateHint').textContent=planning
     ?'開始日時と繰り返し間隔を指定してください。月末に存在しない日付は、その月の末日に予定します。'
@@ -779,7 +781,9 @@ window.openCare=(id,options={})=>{
       $('photoPreview').style.display='block';
     }
   }else{
-    $('careTitle').textContent=careMode==='batch-plan'?`${batchPlanPlantIds.length}株のケア予定`:careMode==='plan'?`${p.name} のケア予定`:`${p.name} のケア記録`;
+    $('careTitle').textContent=careMode==='batch-record'
+      ?`${batchCarePlantIds.length}株のケア記録`
+      :careMode==='batch-plan'?`${batchPlanPlantIds.length}株のケア予定`:careMode==='plan'?`${p.name} のケア予定`:`${p.name} のケア記録`;
     $('saveCare').textContent=planning?'予定を保存':'記録する';
     $('careType').value='水やり';
     if(options.date) $('careRecordedAt').value=toDateTimeLocal(
@@ -806,6 +810,7 @@ $('carePhoto').onchange=()=>{
   $('photoPreview').onload=()=>URL.revokeObjectURL(url);
 };
 $('cancelCare').onclick=()=>{
+  batchCarePlantIds=[];
   batchPlanPlantIds=[];
   careReturnTo='';
   $('careDialog').close();
@@ -864,6 +869,25 @@ $('saveCare').onclick=async()=>{
     photo,
     photoId:careMode==='record' && care==='状態・写真記録'?editingCarePhotoId:''
   };
+  if(careMode==='batch-record'){
+    const targets=data.plants.filter(plant=>batchCarePlantIds.includes(String(plant.id)) && plantManagementStatus(plant)!=='ended');
+    if(!targets.length) return alert('ケアを記録する株を選択してください');
+    const previousLogs=new Map(targets.map(plant=>[String(plant.id),[...(plant.logs || [])]]));
+    targets.forEach(plant=>{
+      if(!Array.isArray(plant.logs)) plant.logs=[];
+      plant.logs.push({...log,details:{...details},photo:'',photoId:''});
+      plant.logs.sort((a,b)=>b.time-a.time);
+    });
+    if(save()){
+      $('careDialog').close();
+      batchCarePlantIds=[];
+      toast(`${targets.length}株にケアを記録しました`);
+    }else{
+      targets.forEach(plant=>{ plant.logs=previousLogs.get(String(plant.id)) || []; });
+      render();
+    }
+    return;
+  }
   if(planning){
     const recurrence={
       unit:$('recurrenceUnit').value,
@@ -1218,6 +1242,50 @@ $('saveBatchEdit').onclick=()=>{
     }));
     render();
   }
+};
+
+function updateBatchCareControls(){
+  const checks=[...document.querySelectorAll('.batch-care-plant-check')];
+  const selected=checks.filter(input=>input.checked).length;
+  $('continueBatchCare').disabled=selected===0;
+  $('continueBatchCare').textContent=selected?`選択した${selected}株のケアを入力`:'株を選択してください';
+  $('batchCareSelectAll').textContent=checks.length && selected===checks.length?'選択を解除':'すべて選択';
+}
+
+function openBatchCareRecording(){
+  closeDataMenu();
+  const availablePlants=data.plants.filter(plant=>plantManagementStatus(plant)!=='ended');
+  if(!availablePlants.length){
+    alert('ケアを記録できる植物がありません。管理終了の状態をご確認ください。');
+    return;
+  }
+  $('batchCarePlantList').innerHTML=availablePlants.map(plant=>`
+    <label class="batch-plant-row">
+      <input class="batch-care-plant-check" type="checkbox" value="${esc(String(plant.id))}">
+      <span>
+        <span class="batch-plant-name">${esc(plant.name)}</span>
+        <span class="batch-plant-meta">${esc(plant.stage || '成株')}${plant.type?` ・ ${esc(plant.type)}`:''}</span>
+      </span>
+    </label>`).join('');
+  updateBatchCareControls();
+  $('batchCareDialog').showModal();
+}
+
+$('batchCareBtn').onclick=openBatchCareRecording;
+$('topBatchCareBtn').onclick=openBatchCareRecording;
+$('batchCarePlantList').onchange=updateBatchCareControls;
+$('batchCareSelectAll').onclick=()=>{
+  const checks=[...document.querySelectorAll('.batch-care-plant-check')];
+  const shouldSelect=!checks.every(input=>input.checked);
+  checks.forEach(input=>{ input.checked=shouldSelect; });
+  updateBatchCareControls();
+};
+$('cancelBatchCare').onclick=()=> $('batchCareDialog').close();
+$('continueBatchCare').onclick=()=>{
+  const ids=[...document.querySelectorAll('.batch-care-plant-check:checked')].map(input=>input.value);
+  if(!ids.length) return;
+  $('batchCareDialog').close();
+  openCare(ids[0],{mode:'batch-record',plantIds:ids});
 };
 
 function updateBatchPlanControls(){

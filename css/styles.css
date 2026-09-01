@@ -55,7 +55,7 @@ h1{font-size:24px;margin:4px 0 4px}
 }
 .toolbar button{
   display:flex;align-items:center;justify-content:center;min-width:0;min-height:48px;
-  padding:10px 2px;font-size:clamp(8px,2.45vw,13px);line-height:1.2;
+  padding:10px 7px;font-size:clamp(10px,2.45vw,13px);line-height:1.2;
   letter-spacing:-.03em;text-align:center;white-space:nowrap
 }
 .release-notice{
@@ -95,9 +95,11 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .care{background:var(--accent)}
 .quick-water{background:#0e7490}
 .top-batch-water{background:#0e7490}
+.top-batch-care{background:#0f766e}
 .top-batch-plan{background:#2563eb}
 .top-reminders{background:#7c3aed}
-.list-layout-toolbar{display:flex;justify-content:flex-end;margin:-4px 0 10px}
+.list-actions-toolbar{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:-4px 0 10px}
+.list-add-button{width:auto;padding:8px 11px;font-size:12px;white-space:nowrap}
 .plant-filters{display:grid;grid-template-columns:minmax(0,1.6fr) repeat(3,minmax(0,1fr));gap:7px;margin-bottom:8px}
 .plant-filters input,.plant-filters select{margin:0}
 .filter-result-count{min-height:18px;margin:0 2px 8px;color:var(--muted);font-size:11px;text-align:right}
@@ -211,6 +213,12 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .weather-status{padding:11px;border-radius:10px;background:var(--bg);font-size:13px;line-height:1.5;margin-bottom:10px;white-space:pre-line}
 .hidden{display:none!important}
 @media(max-width:520px){
+  .toolbar{
+    display:flex;gap:7px;margin-right:-14px;padding-right:14px;overflow-x:auto;
+    scroll-snap-type:x proximity;overscroll-behavior-inline:contain;scrollbar-width:none
+  }
+  .toolbar::-webkit-scrollbar{display:none}
+  .toolbar button{flex:0 0 132px;min-width:132px;font-size:12px;scroll-snap-align:start}
   .plant-filters{grid-template-columns:1fr 1fr}
   .plant-filters input{grid-column:1/-1}
 }

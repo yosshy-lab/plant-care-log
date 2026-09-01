@@ -39,7 +39,7 @@
 <link rel="icon" type="image/png" href="./apple-touch-icon.png">
 <title>塊根植物記録</title>
 <script src="./js/analytics.js?v=1.10.0"></script>
-<link rel="stylesheet" href="./css/styles.css?v=1.10.0-r2">
+<link rel="stylesheet" href="./css/styles.css?v=1.10.0-r3">
 </head>
 <body>
 <div class="wrap">
@@ -56,6 +56,7 @@
         <div class="menu-separator" role="separator"></div>
         <button id="batchWaterBtn" role="menuitem">まとめて水やり</button>
         <button id="batchShortcutBtn" role="menuitem">まとめて水やりURLをコピー</button>
+        <button id="batchCareBtn" role="menuitem">まとめてケア記録</button>
         <button id="batchPlanBtn" role="menuitem">まとめてケア予定</button>
         <button id="remindersBtn" role="menuitem">備忘録・予定</button>
         <button id="calendarExportBtn" role="menuitem">予定をカレンダーへ書き出す</button>
@@ -86,9 +87,9 @@
     <button id="releaseNoticeDetails" class="secondary" type="button">更新内容を見る</button>
   </aside>
 
-  <div class="toolbar">
-    <button id="addBtn">＋植物を追加</button>
+  <div class="toolbar" aria-label="まとめて操作">
     <button class="top-batch-water" id="topBatchWaterBtn">まとめて水やり</button>
+    <button class="top-batch-care" id="topBatchCareBtn">まとめてケア記録</button>
     <button class="top-batch-plan" id="topBatchPlanBtn">まとめてケア予定</button>
     <button class="top-reminders" id="topRemindersBtn">備忘録・予定</button>
   </div>
@@ -100,7 +101,8 @@
   </div>
 
   <div id="listView">
-    <div class="list-layout-toolbar">
+    <div class="list-actions-toolbar">
+      <button class="secondary list-add-button" id="addBtn">＋植物を追加</button>
       <div class="list-layout-switch" role="group" aria-label="一覧の表示形式">
         <button id="listLayoutBtn" class="active" aria-pressed="true">☰ リスト</button>
         <button id="gridLayoutBtn" aria-pressed="false">▦ 2列</button>
@@ -189,6 +191,7 @@
         <p>植物カードの「水やり」は、通常の水やり・液肥なしとしてすぐに記録します。詳しい内容を残す場合は「＋ ケアを記録」を使用してください。</p>
         <p>「＋ ケアを記録」の記録日時を変更すると、昨日など過去のケアを登録できます。未来の日時は「予定」として登録してください。</p>
         <p>過去の記録は植物の詳細画面下部にある「履歴を見る」、またはカレンダーの日付から確認・編集・削除できます。</p>
+        <p>複数株へ同じケアを記録する場合は、画面上部または右上メニューの「まとめてケア記録」で対象株を選択してください。</p>
         <p>植物の詳細画面下部にある「予定を管理」では、1回だけの予定と、日・週・月単位の繰り返し予定を登録・編集・削除できます。間隔を2にすると隔日・隔週・隔月になります。</p>
         <p>同じケア予定を複数株へ登録する場合は、画面上部または右上メニューの「まとめてケア予定」で対象株を選択してください。ケア内容、予定日時、メモ、繰り返し周期を1回入力すると、選択した全株へ登録されます。</p>
         <p>株に紐づかない予定は、画面上部または右上メニューの「備忘録・予定」から登録できます。液肥や遮光変更などの予定名、日時、メモ、繰り返し間隔を設定するとカレンダーへ表示されます。</p>
@@ -591,6 +594,21 @@
     <div class="actions">
       <button class="secondary" id="cancelBatchWater">キャンセル</button>
       <button id="saveBatchWater" disabled>株を選択してください</button>
+    </div>
+  </div>
+</dialog>
+
+<dialog id="batchCareDialog">
+  <div class="modal">
+    <div class="batch-header">
+      <h2>まとめてケア記録</h2>
+      <button class="secondary batch-select-all" id="batchCareSelectAll">すべて選択</button>
+    </div>
+    <p class="hint">同じケア内容を記録する株を選択してください。</p>
+    <div id="batchCarePlantList" class="batch-plant-list"></div>
+    <div class="actions">
+      <button class="secondary" id="cancelBatchCare">キャンセル</button>
+      <button id="continueBatchCare" disabled>株を選択してください</button>
     </div>
   </div>
 </dialog>

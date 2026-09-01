@@ -46,25 +46,32 @@ test('SNS共有用のOGP画像とメタ情報を配信する', async ({ page }) 
   expect(image.byteLength).toBeGreaterThan(100_000);
 });
 
-test('主要操作を同じ幅の横一列で表示し予定画面を開ける', async ({ page }) => {
+test('一覧専用の植物追加と横スクロール対応のまとめ操作を表示する', async ({ page }) => {
   await seed(page, [plants[0]]);
   await page.goto('/');
-  const selectors=['#addBtn','#topBatchWaterBtn','#topBatchPlanBtn','#topRemindersBtn'];
+  const selectors=['#topBatchWaterBtn','#topBatchCareBtn','#topBatchPlanBtn','#topRemindersBtn'];
   const buttons=selectors.map(selector=>page.locator(selector));
   for(const button of buttons) await expect(button).toBeVisible();
+  await expect(page.locator('#addBtn')).toBeVisible();
+  await expect(page.locator('#addBtn')).toHaveClass(/list-add-button/);
 
-  const boxes=await Promise.all(buttons.map(button=>button.boundingBox()));
-  expect(boxes.every(Boolean)).toBe(true);
-  expect(Math.max(...boxes.map(box=>box.y))-Math.min(...boxes.map(box=>box.y))).toBeLessThanOrEqual(1);
-  expect(Math.max(...boxes.map(box=>box.width))-Math.min(...boxes.map(box=>box.width))).toBeLessThanOrEqual(1);
   const fit=await page.locator('.toolbar button').evaluateAll(elements=>elements.every(element=>element.scrollWidth<=element.clientWidth+1));
   expect(fit).toBe(true);
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  const scrollState=await page.locator('.toolbar').evaluate(element=>({clientWidth:element.clientWidth,scrollWidth:element.scrollWidth}));
+  expect(scrollState.scrollWidth).toBeGreaterThan(scrollState.clientWidth);
+  await expect(page.locator('#topRemindersBtn')).toBeVisible();
 
   await page.locator('#topBatchPlanBtn').click();
   await expect(page.locator('#batchPlanDialog')).toBeVisible();
   await page.locator('#cancelBatchPlan').click();
   await page.locator('#topRemindersBtn').click();
   await expect(page.locator('#remindersDialog')).toBeVisible();
+  await page.locator('#closeReminders').click();
+
+  await page.locator('#calendarViewBtn').click();
+  await expect(page.locator('#addBtn')).toBeHidden();
 });
 
 test('更新案内は新バージョンの初回だけ表示しメニューから再確認できる', async ({ page }) => {
@@ -850,6 +857,39 @@ test('未来日のカレンダーから予定登録画面を開ける', async ({
   await expect(page.locator('#careTitle')).toContainText('ケア予定');
   await expect(page.locator('#careRecordedAt')).toHaveValue(/^2099-05-10T/);
   await expect(page.locator('#recurrenceFields')).toBeVisible();
+});
+
+test('選択した複数株へ同じケア記録をまとめて登録する', async ({ page }) => {
+  await seed(page, plants.map(plant => ({ ...plant, plans: [], logs: [] })));
+  await page.goto('/');
+  await page.locator('#topBatchCareBtn').click();
+  await expect(page.locator('#batchCareDialog')).toBeVisible();
+  await expect(page.locator('.batch-care-plant-check')).toHaveCount(2);
+  await page.locator('#batchCareSelectAll').click();
+  await page.locator('#continueBatchCare').click();
+
+  await expect(page.locator('#careTitle')).toContainText('2株のケア記録');
+  await expect(page.locator('#recurrenceFields')).toBeHidden();
+  await expect(page.locator('#carePhotoFields')).toBeHidden();
+  await page.locator('#careType').selectOption({ label: '薬剤散布' });
+  await page.locator('#careRecordedAt').fill('2026-08-31T09:00');
+  await page.locator('#pesticideName').fill('ベニカXファイン');
+  await page.locator('#pesticideTarget').fill('ハダニ');
+  await page.locator('#waterNote').fill('屋外棚の株へ散布');
+  await page.locator('#saveCare').click();
+  await expect(page.locator('#careDialog')).toBeHidden();
+  await expect(page.locator('#toast')).toContainText('2株にケアを記録しました');
+
+  const saved = await page.evaluate(key => JSON.parse(localStorage.getItem(key)), storageKey);
+  expect(saved.plants[0].logs).toHaveLength(1);
+  expect(saved.plants[1].logs).toHaveLength(1);
+  expect(saved.plants[2].logs).toHaveLength(0);
+  expect(saved.plants[0].logs[0]).toMatchObject({
+    care: '薬剤散布',
+    note: '屋外棚の株へ散布',
+    details: { name: 'ベニカXファイン', target: 'ハダニ' }
+  });
+  expect(saved.plants[1].logs[0]).toMatchObject(saved.plants[0].logs[0]);
 });
 
 test('選択した複数株へ同じケア予定をまとめて登録する', async ({ page }) => {
