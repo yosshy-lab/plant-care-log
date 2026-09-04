@@ -250,7 +250,7 @@
     <ol class="help-steps" aria-label="基本的な使い方">
       <li><strong>植物を登録</strong><br>「＋ 植物を追加」から管理名や生育区分を入力します。</li>
       <li><strong>今日を確認</strong><br>今日の予定を確認し、「完了して記録」または「1日延期」を選びます。</li>
-      <li><strong>ケアを記録</strong><br>植物カード、または画面下部中央の「記録」から各種ケアを記録します。</li>
+      <li><strong>ケアを記録</strong><br>植物カード、植物詳細、または画面下部中央の「記録」から各種ケアを記録します。</li>
     </ol>
 
     <details class="help-section">
@@ -268,6 +268,7 @@
         <p>植物カードの「水やり」は、通常の水やり・液肥なしとしてすぐに記録します。詳しい内容を残す場合は「＋ ケアを記録」を使用してください。</p>
         <p>「＋ ケアを記録」の記録日時を変更すると、昨日など過去のケアを登録できます。未来の日時は「予定」として登録してください。</p>
         <p>過去の記録は植物の詳細画面下部にある「履歴を見る」、またはカレンダーの日付から確認・編集・削除できます。</p>
+        <p>植物詳細では、前回の水やり、平均間隔、次の予定と、写真・ケアをまとめた成長タイムラインを確認できます。写真が2枚以上ある場合は「成長写真を比較」から並べて確認できます。</p>
         <p>複数株へ同じケアを記録する場合は、一覧右上の「複数選択」から対象株を選び、画面下部の「ケア記録」を使用してください。</p>
         <p>植物の詳細画面下部にある「予定を管理」では、1回だけの予定と、日・週・月単位の繰り返し予定を登録・編集・削除できます。間隔を2にすると隔日・隔週・隔月になります。</p>
         <p>同じケア予定を複数株へ登録する場合は、一覧の「複数選択」から対象株を選び、画面下部の「予定」を使用してください。ケア内容、予定日時、メモ、繰り返し周期を1回入力すると、選択した全株へ登録されます。</p>
@@ -638,22 +639,40 @@
 </dialog>
 
 <dialog id="plantDetailsDialog">
-  <div class="modal">
+  <div class="modal plant-details-modal">
     <div id="plantDetailsContent"></div>
+    <div class="detail-quick-actions" aria-label="この植物への記録">
+      <button id="quickWaterPlantDetails"><span aria-hidden="true">💧</span>水やり</button>
+      <button id="carePlantDetails"><span aria-hidden="true">✎</span>ケア記録</button>
+      <button id="plansPlantDetails"><span aria-hidden="true">▣</span>予定</button>
+    </div>
+    <div id="plantDetailsTimelineContent"></div>
     <div class="detail-actions">
       <button class="secondary" id="closePlantDetails">閉じる</button>
-      <button class="secondary" id="editPlantDetails">編集</button>
-      <button id="carePlantDetails">ケアを記録</button>
+      <button class="secondary" id="editPlantDetails">株情報を編集</button>
     </div>
     <div class="detail-management">
       <div class="detail-management-title">この株の管理</div>
       <div class="detail-management-actions">
-        <button class="secondary" id="plansPlantDetails">予定を管理</button>
-        <button class="secondary" id="historyPlantDetails">履歴を見る</button>
+        <button class="secondary" id="historyPlantDetails">すべての履歴を見る</button>
+        <button class="secondary" id="comparePhotosPlantDetails">成長写真を比較</button>
         <button class="secondary" id="shortcutPlantDetails">水やりショートカットURLをコピー</button>
         <button class="danger" id="deletePlantDetails">この株を削除</button>
       </div>
     </div>
+  </div>
+</dialog>
+
+<dialog id="photoCompareDialog">
+  <div class="modal">
+    <h2 id="photoCompareTitle">成長写真を比較</h2>
+    <p class="hint">比較する2枚の写真を選択してください。</p>
+    <div class="photo-compare-controls">
+      <label>左の写真<select id="comparePhotoA"></select></label>
+      <label>右の写真<select id="comparePhotoB"></select></label>
+    </div>
+    <div id="photoCompareStage" class="photo-compare-stage"></div>
+    <div class="actions"><button id="closePhotoCompare">詳細へ戻る</button></div>
   </div>
 </dialog>
 

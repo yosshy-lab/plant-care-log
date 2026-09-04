@@ -106,7 +106,7 @@ test('更新案内は新バージョンの初回だけ表示しメニューか�
   await page.goto('/');
   await expect(page.locator('#releaseNotice')).toBeVisible();
   await expect(page.locator('#releaseNotice')).toContainText('v1.12.0 更新');
-  await expect(page.locator('#releaseNotice')).toContainText('今日画面と下部ナビゲーションを追加');
+  await expect(page.locator('#releaseNotice')).toContainText('今日画面と成長タイムラインを追加');
 
   await page.locator('#releaseNoticeDetails').click();
   await expect(page.locator('#releaseNotesDialog')).toBeVisible();
@@ -183,6 +183,46 @@ test('株登録写真をIndexedDBへ保存しLocalStorageには画像本体を�
   await page.reload();
   await page.locator('.plant-card').click();
   await expect(page.locator('.detail-photo')).toBeVisible();
+});
+
+test('植物詳細で管理指標・成長タイムライン・写真比較を確認できる', async ({ page }) => {
+  const now=Date.now();
+  const day=24*60*60*1000;
+  const photo='data:image/jpeg;base64,AA==';
+  await seed(page, [{
+    ...plants[0],
+    photo,
+    logs:[
+      {time:now-4*day,care:'水やり',type:'通常',fertilizer:'なし',details:{waterAmount:'100ml'}},
+      {time:now-10*day,care:'水やり',type:'通常',fertilizer:'なし',details:{waterAmount:'80ml'}},
+      {time:now-20*day,care:'状態・写真記録',details:{height:'12cm'},note:'新芽を確認',photo}
+    ],
+    plans:[{
+      id:'detail-plan',startAt:now+day,care:'施肥',details:{},recurrence:{unit:'none',interval:1}
+    }]
+  }]);
+  await page.goto('/');
+  await page.locator('.plant-card').click();
+
+  await expect(page.locator('#plantDetailsDialog')).toBeVisible();
+  await expect(page.locator('.detail-vitals')).toContainText('4日');
+  await expect(page.locator('.detail-vitals')).toContainText('6.0日');
+  await expect(page.locator('.detail-vitals')).toContainText('明日');
+  await expect(page.locator('.detail-timeline-item')).toHaveCount(3);
+  await expect(page.locator('.detail-timeline')).toContainText('新芽を確認');
+
+  await expect(page.locator('#comparePhotosPlantDetails')).toBeEnabled();
+  await page.locator('#comparePhotosPlantDetails').click();
+  await expect(page.locator('#photoCompareDialog')).toBeVisible();
+  await expect(page.locator('#photoCompareStage figure')).toHaveCount(2);
+  await page.locator('#closePhotoCompare').click();
+  await expect(page.locator('#plantDetailsDialog')).toBeVisible();
+
+  await page.locator('#quickWaterPlantDetails').click();
+  await expect(page.locator('#plantDetailsDialog')).toBeVisible();
+  const saved=await page.evaluate(key=>JSON.parse(localStorage.getItem(key)),storageKey);
+  expect(saved.plants[0].logs).toHaveLength(4);
+  expect(saved.plants[0].logs[0].care).toBe('水やり');
 });
 
 test('LocalStorage内の既存写真を初回起動時にIndexedDBへ自動移行する', async ({ page }) => {

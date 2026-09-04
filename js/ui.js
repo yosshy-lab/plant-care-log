@@ -47,12 +47,14 @@ function initializeTheme(){
 
 const RELEASE_NOTES=[
   {
-    version:'1.12.0',date:'2026年9月4日',title:'今日画面と下部ナビゲーションを追加',
+    version:'1.12.0',date:'2026年9月4日',title:'今日画面と成長タイムラインを追加',
     items:[
       '今日の予定、期限を過ぎた予定、昨日の降雨をまとめて確認できる「今日」画面を追加しました。',
       'スマートフォンで主要画面へ移動しやすい下部ナビゲーションと、中央の記録メニューを追加しました。',
       '植物一覧で複数株を直接選び、水やり、ケア記録、予定、一括編集へ進めるようになりました。',
-      '単発のケア予定は「完了」で履歴へ移し、「1日延期」で翌日へ変更できるようになりました。'
+      '単発のケア予定は「完了」で履歴へ移し、「1日延期」で翌日へ変更できるようになりました。',
+      '植物詳細を写真中心の画面へ刷新し、水やり間隔、次回予定、写真とケアの成長タイムラインを追加しました。',
+      '記録した成長写真から2枚を選び、並べて比較できるようになりました。'
     ]
   },
   {
@@ -411,7 +413,7 @@ function render(){
   if(!$('calendarView').classList.contains('hidden')) renderCalendar();
 }
 
-window.quickWater=id=>{
+window.quickWater=(id,source='list')=>{
   const p=data.plants.find(x=>String(x.id)===String(id));
   if(!p) return;
   if(plantManagementStatus(p)==='ended') return toast('管理終了した株には記録できません');
@@ -426,13 +428,13 @@ window.quickWater=id=>{
     care:'水やり',
     type:'通常',
     fertilizer:'なし',
-    note:'一覧の水やりボタンから記録'
+    note:source==='detail'?'植物詳細の水やりボタンから記録':'一覧の水やりボタンから記録'
   };
   p.logs.unshift(log);
   p.logs.sort((a,b)=>b.time-a.time);
   if(save()){
     toast(`💧 ${p.name} の水やりを記録しました`);
-    trackPlantCareEvent('water_recorded',{method:'quick'});
+    trackPlantCareEvent('water_recorded',{method:'quick',source});
   }else p.logs=p.logs.filter(item=>item!==log);
 };
 
@@ -509,13 +511,94 @@ function detailItem(label,value,wide=false){
   return `<div class="${wide?'detail-wide':''}"><div class="detail-label">${esc(label)}</div><div class="detail-value">${value}</div></div>`;
 }
 
+function plantWateringStats(plant){
+  const times=(plant.logs || [])
+    .filter(log=>(log.care || '水やり')==='水やり' && Number.isFinite(Number(log.time)))
+    .map(log=>Number(log.time))
+    .sort((a,b)=>b-a);
+  if(!times.length) return {lastAt:null,averageDays:null,count:0};
+  if(times.length===1) return {lastAt:times[0],averageDays:null,count:1};
+  const intervals=times.slice(0,-1).map((time,index)=>Math.abs(time-times[index+1])/86400000);
+  const average=intervals.reduce((sum,value)=>sum+value,0)/intervals.length;
+  return {lastAt:times[0],averageDays:average,count:times.length};
+}
+
+function nextPlanOccurrence(plant){
+  const plans=plant.plans || [];
+  if(!plans.length) return null;
+  const now=new Date();
+  const dayStart=new Date(now.getFullYear(),now.getMonth(),now.getDate());
+  const candidates=[];
+  plans.forEach(plan=>{
+    const unit=plan.recurrence?.unit || 'none';
+    if(unit==='none'){
+      if(Number(plan.startAt)>=Date.now()) candidates.push({plan,time:Number(plan.startAt)});
+      return;
+    }
+    if(typeof planOccursOnDate!=='function') return;
+    for(let offset=0;offset<=400;offset++){
+      const target=new Date(dayStart);
+      target.setDate(dayStart.getDate()+offset);
+      const key=dateKey(target);
+      if(!planOccursOnDate(plan,key)) continue;
+      const original=new Date(Number(plan.startAt));
+      target.setHours(original.getHours(),original.getMinutes(),0,0);
+      candidates.push({plan,time:target.getTime(),isToday:offset===0});
+      break;
+    }
+  });
+  return candidates.sort((a,b)=>a.time-b.time)[0] || null;
+}
+
+function detailPlanTime(item){
+  if(!item) return '予定なし';
+  const target=new Date(item.time);
+  const today=new Date();
+  const tomorrow=new Date(today);
+  tomorrow.setDate(today.getDate()+1);
+  const key=dateKey(target);
+  const prefix=key===dateKey(today)?'今日':key===dateKey(tomorrow)?'明日':`${target.getMonth()+1}/${target.getDate()}`;
+  return `${prefix} ${String(target.getHours()).padStart(2,'0')}:${String(target.getMinutes()).padStart(2,'0')}`;
+}
+
+function timelineIcon(care){
+  return {'水やり':'💧','薬剤散布':'☘','植え替え':'♻','施肥':'✦','状態・写真記録':'📷'}[care] || '✓';
+}
+
+function plantTimelineHtml(plant){
+  const logs=[...(plant.logs || [])].sort((a,b)=>Number(b.time)-Number(a.time)).slice(0,6);
+  if(!logs.length) return '<div class="detail-timeline-empty">まだ記録がありません。最初のケアや成長写真を記録してみましょう。</div>';
+  return `<div class="detail-timeline">${logs.map(log=>`
+    <article class="detail-timeline-item${isStoredPhoto(log.photo)?' has-photo':''}">
+      <div class="detail-timeline-marker" aria-hidden="true">${timelineIcon(log.care || '水やり')}</div>
+      <div class="detail-timeline-body">
+        <div class="detail-timeline-heading"><strong>${esc(log.care || '水やり')}</strong><time>${esc(fmtDate(log.time))}</time></div>
+        <div class="detail-timeline-note">${careDetailHtml(log)}</div>
+        ${isStoredPhoto(log.photo)?`<img class="detail-timeline-photo" src="${log.photo}" alt="${esc(fmtDate(log.time))}の成長記録">`:''}
+      </div>
+    </article>`).join('')}</div>`;
+}
+
+function plantComparisonPhotos(plant){
+  const items=(plant.logs || [])
+    .filter(log=>isStoredPhoto(log.photo))
+    .sort((a,b)=>Number(a.time)-Number(b.time))
+    .map(log=>({src:log.photo,label:`${fmtDate(log.time)} ・ ${log.care || '成長記録'}`}));
+  if(isStoredPhoto(plant.photo)) items.push({src:plant.photo,label:'現在の登録写真'});
+  return items;
+}
+
+let photoComparisonItems=[];
+
 function openPlantDetails(id){
   const p=data.plants.find(x=>String(x.id)===String(id));
   if(!p) return;
   detailPlantId=p.id;
-  const last=p.logs?.[0];
-  const validPhoto=/^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(p.photo || '');
-  const photo=validPhoto?`<img class="detail-photo" src="${p.photo}" alt="${esc(p.name)}の登録写真">`:'';
+  const water=plantWateringStats(p);
+  const nextPlan=nextPlanOccurrence(p);
+  const hero=isStoredPhoto(p.photo)
+    ?`<img class="detail-hero-photo detail-photo" src="${p.photo}" alt="${esc(p.name)}の登録写真">`
+    :'<div class="detail-hero-photo detail-hero-placeholder" aria-hidden="true">🌿</div>';
   const price=p.price!=='' && p.price!==undefined && Number.isFinite(Number(p.price))
     ?`${Number(p.price).toLocaleString('ja-JP')}円`:'';
   const acquisition=[
@@ -533,22 +616,44 @@ function openPlantDetails(id){
     detailItem('雨の当たり方',p.rainExposure==='sheltered'?'雨が当たらない':'雨が当たる'),
     detailItem('メモ',p.memo?`<span class="detail-note">${esc(p.memo)}</span>`:'',true)
   ].join('');
-  const latest=last
-    ?`<div class="detail-latest"><div class="detail-latest-title">${esc(last.care || '水やり')}</div><div class="detail-latest-meta">${fmtDate(last.time)}</div><div class="detail-value">${careDetailHtml(last)}</div>${photoHtml(last.photo)}</div>`
-    :'<div class="detail-value">ケア履歴はまだありません。</div>';
   $('plantDetailsContent').innerHTML=`
-    <div class="detail-hero">${photo}<div><h2 class="detail-title">${esc(p.name)}</h2>
-      <div class="detail-subtitle">${esc(p.stage || '成株')}${p.type?` ・ ${esc(p.type)}`:''}${plantStatusBadge(p)}</div>
-      </div></div>
+    <div class="detail-hero">
+      ${hero}
+      <button class="detail-hero-close" type="button" aria-label="詳細を閉じる" onclick="$('plantDetailsDialog').close()">×</button>
+      <div class="detail-hero-overlay">
+        <h2 class="detail-title">${esc(p.name)}</h2>
+        <div class="detail-subtitle">${esc(p.stage || '成株')}${p.type?` ・ ${esc(p.type)}`:''}${plantStatusBadge(p)}</div>
+        ${plantTagsHtml(p,{limit:4})}
+      </div>
+    </div>
+    <section class="detail-vitals" aria-label="管理状況">
+      <div><span>前回の水やり</span><strong>${water.lastAt?esc(elapsed(water.lastAt).main):'未記録'}</strong><small>${water.lastAt?esc(fmtDate(water.lastAt)):'水やりを記録してください'}</small></div>
+      <div><span>平均間隔</span><strong>${water.averageDays===null?'--':`${water.averageDays<10?water.averageDays.toFixed(1):Math.round(water.averageDays)}日`}</strong><small>${water.count>=2?`${water.count}回の記録から`:'2回以上で表示'}</small></div>
+      <div><span>次の予定</span><strong>${esc(detailPlanTime(nextPlan))}</strong><small>${nextPlan?esc(nextPlan.plan.care || 'ケア予定'):'予定を追加できます'}</small></div>
+    </section>`;
+  $('plantDetailsTimelineContent').innerHTML=`
+    <section class="detail-section detail-timeline-section">
+      <div class="detail-section-heading"><div><span class="screen-eyebrow">写真とケアを時系列で確認</span><h3>成長タイムライン</h3></div><button class="secondary" type="button" onclick="$('historyPlantDetails').click()">すべて見る</button></div>
+      ${plantTimelineHtml(p)}
+    </section>
     ${acquisition?`<section class="detail-section"><h3>入手情報</h3><div class="detail-grid">${acquisition}</div></section>`:''}
-    ${cultivation?`<section class="detail-section"><h3>栽培情報・メモ</h3><div class="detail-grid">${cultivation}</div></section>`:''}
-    <section class="detail-section"><h3>直近のケア</h3>${latest}</section>`;
+    ${cultivation?`<section class="detail-section"><h3>栽培情報・メモ</h3><div class="detail-grid">${cultivation}</div></section>`:''}`;
   $('carePlantDetails').disabled=plantManagementStatus(p)==='ended';
-  $('plantDetailsDialog').showModal();
+  $('quickWaterPlantDetails').disabled=plantManagementStatus(p)==='ended';
+  $('plansPlantDetails').disabled=plantManagementStatus(p)==='ended';
+  const comparisonCount=plantComparisonPhotos(p).length;
+  $('comparePhotosPlantDetails').disabled=comparisonCount<2;
+  $('comparePhotosPlantDetails').textContent=comparisonCount<2?'成長写真を比較（2枚必要）':'成長写真を比較';
+  if(!$('plantDetailsDialog').open) $('plantDetailsDialog').showModal();
   trackPlantCareEvent('plant_details_viewed');
 }
 
 $('closePlantDetails').onclick=()=> $('plantDetailsDialog').close();
+$('quickWaterPlantDetails').onclick=()=>{
+  const id=detailPlantId;
+  quickWater(id,'detail');
+  if($('plantDetailsDialog').open) openPlantDetails(id);
+};
 $('editPlantDetails').onclick=()=>{
   const id=detailPlantId;
   $('plantDetailsDialog').close();
@@ -563,6 +668,22 @@ $('historyPlantDetails').onclick=()=>{
   const id=detailPlantId;
   $('plantDetailsDialog').close();
   showHistory(id);
+};
+$('comparePhotosPlantDetails').onclick=()=>{
+  const p=data.plants.find(x=>String(x.id)===String(detailPlantId));
+  if(!p) return;
+  photoComparisonItems=plantComparisonPhotos(p);
+  if(photoComparisonItems.length<2) return toast('比較するには成長写真を2枚以上記録してください');
+  const options=photoComparisonItems.map((item,index)=>`<option value="${index}">${esc(item.label)}</option>`).join('');
+  $('comparePhotoA').innerHTML=options;
+  $('comparePhotoB').innerHTML=options;
+  $('comparePhotoA').value='0';
+  $('comparePhotoB').value=String(photoComparisonItems.length-1);
+  $('photoCompareTitle').textContent=`${p.name} の成長比較`;
+  renderPhotoComparison();
+  $('plantDetailsDialog').close();
+  $('photoCompareDialog').showModal();
+  trackPlantCareEvent('growth_photos_compared',{photo_count:photoComparisonItems.length});
 };
 $('plansPlantDetails').onclick=()=>{
   const id=detailPlantId;
@@ -579,6 +700,22 @@ $('deletePlantDetails').onclick=()=>{
   const count=data.plants.length;
   removePlant(id);
   if(data.plants.length<count) $('plantDetailsDialog').close();
+};
+
+function renderPhotoComparison(){
+  const left=photoComparisonItems[Number($('comparePhotoA').value)];
+  const right=photoComparisonItems[Number($('comparePhotoB').value)];
+  if(!left || !right) return;
+  $('photoCompareStage').innerHTML=`
+    <figure><img src="${left.src}" alt="左：${esc(left.label)}"><figcaption>${esc(left.label)}</figcaption></figure>
+    <figure><img src="${right.src}" alt="右：${esc(right.label)}"><figcaption>${esc(right.label)}</figcaption></figure>`;
+}
+
+$('comparePhotoA').onchange=renderPhotoComparison;
+$('comparePhotoB').onchange=renderPhotoComparison;
+$('closePhotoCompare').onclick=()=>{
+  $('photoCompareDialog').close();
+  openPlantDetails(detailPlantId);
 };
 
 let editingPlantId=null;
@@ -1129,7 +1266,7 @@ function careDetailHtml(l){
 }
 
 function photoHtml(photo){
-  if(!/^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(photo || '')) return '';
+  if(!isStoredPhoto(photo)) return '';
   return `<img class="history-photo" src="${photo}" alt="成長記録の写真">`;
 }
 
