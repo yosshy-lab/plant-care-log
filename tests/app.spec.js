@@ -14,6 +14,17 @@ async function seed(page, plants = [], reminders = []) {
   }, { key: storageKey, plants, reminders });
 }
 
+async function openMore(page) {
+  await page.locator('#navMoreBtn').click();
+  await expect(page.locator('#dataMenu')).toBeVisible();
+}
+
+async function openDataManagement(page) {
+  await openMore(page);
+  await page.locator('#openDataManagementBtn').click();
+  await expect(page.locator('#dataManagementDialog')).toBeVisible();
+}
+
 const plants = [
   { id: 'a', name: 'グラキリス', type: 'Pachypodium gracilius', stage: '実生', managementStatus: 'active', location: '屋外棚', logs: [] },
   { id: 'b', name: '恵比寿大黒', type: 'Pachypodium densicaule', stage: '成株', managementStatus: 'dormant', location: '室内', logs: [] },
@@ -93,9 +104,19 @@ test('下部ナビと一覧の一括選択操作を表示する', async ({ page 
   await page.locator('#navRecordBtn').click();
   await expect(page.locator('#recordMenuDialog')).toBeVisible();
   await page.locator('#closeRecordMenu').click();
+  if(page.viewportSize().width<=520) await expect(page.locator('#menuBtn')).toBeHidden();
+  else await expect(page.locator('#menuBtn')).toBeVisible();
   await page.locator('#navMoreBtn').click();
   await expect(page.locator('#dataMenu')).toBeVisible();
-  await page.locator('#navMoreBtn').click();
+  await expect(page.locator('.menu-sheet-section')).toHaveCount(4);
+  await expect(page.locator('#dataMenu')).toContainText('カレンダー・天気');
+  await expect(page.locator('#batchWaterBtn')).toHaveCount(0);
+  await page.locator('#openDataManagementBtn').click();
+  await expect(page.locator('#dataManagementDialog')).toBeVisible();
+  await expect(page.locator('.data-management-intro')).toContainText('ブラウザ内に保存');
+  await page.locator('#backToMoreMenu').click();
+  await expect(page.locator('#dataMenu')).toBeVisible();
+  await page.locator('#closeMoreMenu').click();
   await expect(page.locator('#dataMenu')).toBeHidden();
   await page.locator('#navCalendarBtn').click();
   await expect(page.locator('#addBtn')).toBeHidden();
@@ -118,7 +139,7 @@ test('更新案内は新バージョンの初回だけ表示しメニューか�
   await page.reload();
   await expect(page.locator('#releaseNotice')).toBeHidden();
 
-  await page.locator('#menuBtn').click();
+  await openMore(page);
   await page.locator('#releaseNotesBtn').click();
   await expect(page.locator('#releaseNotesDialog')).toBeVisible();
   await expect(page.locator('#releaseNotesList')).toContainText('v1.12.0');
@@ -256,7 +277,7 @@ test('LocalStorage内の既存写真を初回起動時にIndexedDBへ自動移�
   expect(result.saved.plants[0].logs[0].photoId).toBeTruthy();
   expect(result.records).toHaveLength(2);
 
-  await page.locator('#menuBtn').click();
+  await openDataManagement(page);
   await expect(page.locator('#photoStorageStatus')).toContainText('写真 2枚');
 });
 
@@ -323,7 +344,7 @@ test('タグで株を整理し、選択した株だけをまとめて編集で�
   await expect(page.locator('.plant-card')).toContainText('グラキリス');
   await page.locator('#plantTagFilter').selectOption('');
 
-  await page.locator('#menuBtn').click();
+  await openMore(page);
   await page.locator('#batchEditBtn').click();
   await expect(page.locator('#batchEditDialog')).toBeVisible();
   await page.locator('.batch-edit-plant-check[value="a"]').check();
@@ -351,7 +372,7 @@ test('タグで株を整理し、選択した株だけをまとめて編集で�
 test('株の並び順を変更して保持できる', async ({ page }) => {
   await seed(page, plants.map(plant => ({ ...plant, managementStatus: 'active' })));
   await page.goto('/');
-  await page.locator('#menuBtn').click();
+  await openMore(page);
   await page.locator('#reorderPlantsBtn').click();
   await page.getByRole('button', { name: '恵比寿大黒を上へ' }).click();
   await page.locator('#saveReorderPlants').click();
@@ -457,7 +478,7 @@ test('バックアップに件数とバージョン情報を含めて保存す�
   };
   await seed(page, withLogs, [reminder]);
   await page.goto('/');
-  await page.locator('#menuBtn').click();
+  await openDataManagement(page);
 
   const downloadPromise = page.waitForEvent('download');
   await page.locator('#exportBtn').click();
@@ -473,7 +494,6 @@ test('バックアップに件数とバージョン情報を含めて保存す�
   expect(payload.reminders).toEqual([reminder]);
   expect(payload.plants[0].photo).toBe('data:image/jpeg;base64,AA==');
 
-  await page.locator('#menuBtn').click();
   await expect(page.locator('#backupStatus')).toContainText('最終保存');
   await expect(page.locator('#backupStatus')).toContainText('3株・履歴1件・予定1件・写真1枚');
 });
@@ -500,7 +520,7 @@ test('復元前に自動退避し、復元を取り消せる', async ({ page }) 
   const restorePoint = await page.evaluate(() => localStorage.getItem('plant-care-pre-restore-v1'));
   expect(restorePoint).toBeTruthy();
 
-  await page.locator('#menuBtn').click();
+  await openDataManagement(page);
   await expect(page.locator('#restorePreImportBtn')).toBeVisible();
   page.once('dialog', dialog => dialog.accept());
   await page.locator('#restorePreImportBtn').click();
@@ -538,8 +558,8 @@ test('未バックアップ期間が7日を超えるとメニュー内で通知�
     }));
   });
   await page.goto('/');
-  await expect(page.locator('#menuBtn')).toHaveAttribute('aria-label', 'メニュー（バックアップをおすすめします）');
-  await page.locator('#menuBtn').click();
+  await expect(page.locator('#navMoreBtn')).toHaveAttribute('aria-label', 'その他（バックアップをおすすめします）');
+  await openDataManagement(page);
   await expect(page.locator('#backupStatus')).toHaveClass(/due/);
   await expect(page.locator('#backupStatus')).toContainText('未バックアップ');
 });
@@ -692,10 +712,10 @@ test('端末設定に合わせてダークモードへ切り替わる', async ({
   await expect(page.locator('.bottom-nav')).toHaveCSS('border-top-color', 'rgb(55, 65, 81)');
   await expect(page.locator('.list-layout-switch')).toHaveCSS('border-top-color', 'rgb(100, 116, 139)');
 
-  await page.locator('#menuBtn').click();
+  await openMore(page);
   await expect(page.locator('#helpBtn')).toHaveCSS('border-top-color', 'rgba(0, 0, 0, 0)');
   await expect(page.locator('#themeSettingsBtn')).toHaveCSS('border-top-color', 'rgba(0, 0, 0, 0)');
-  await page.locator('#menuBtn').click();
+  await page.locator('#closeMoreMenu').click();
 
   await page.locator('#addBtn').click();
   await expect(page.locator('#plantDialog')).toHaveCSS('background-color', 'rgb(17, 24, 39)');
@@ -758,7 +778,7 @@ test('メニューで表示テーマを選択して保存できる', async ({ pa
   await seed(page, [plants[0]]);
   await page.goto('/');
 
-  await page.locator('#menuBtn').click();
+  await openMore(page);
   await expect(page.locator('#themeSettingsBtn')).toHaveText('表示テーマ：自動');
   await page.locator('#themeSettingsBtn').click();
   await page.locator('#themeMode').selectOption('dark');
@@ -773,7 +793,7 @@ test('メニューで表示テーマを選択して保存できる', async ({ pa
 
   await page.reload();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
-  await page.locator('#menuBtn').click();
+  await openMore(page);
   await expect(page.locator('#themeSettingsBtn')).toHaveText('表示テーマ：ダーク');
   await page.locator('#themeSettingsBtn').click();
   await page.locator('#themeMode').selectOption('auto');
@@ -965,8 +985,8 @@ test('選択した複数株へ同じケア記録をまとめて登録する', as
 test('選択した複数株へ同じケア予定をまとめて登録する', async ({ page }) => {
   await seed(page, plants.map(plant => ({ ...plant, plans: [], logs: [] })));
   await page.goto('/');
-  await page.locator('#menuBtn').click();
-  await page.locator('#batchPlanBtn').click();
+  await page.locator('#navRecordBtn').click();
+  await page.locator('#recordMenuPlan').click();
   await expect(page.locator('#batchPlanDialog')).toBeVisible();
   await expect(page.locator('.batch-plan-plant-check')).toHaveCount(2);
   await page.locator('#batchPlanSelectAll').click();
@@ -1005,8 +1025,8 @@ test('選択した複数株へ同じケア予定をまとめて登録する', as
 test('株を選ばず隔週の備忘録を登録してカレンダーに表示する', async ({ page }) => {
   await seed(page, [plants[0]]);
   await page.goto('/');
-  await page.locator('#menuBtn').click();
-  await page.locator('#remindersBtn').click();
+  await page.locator('#navRecordBtn').click();
+  await page.locator('#recordMenuReminder').click();
   await expect(page.locator('#remindersDialog')).toBeVisible();
   await page.locator('#addReminder').click();
   await page.locator('#reminderTitle').fill('液肥');
@@ -1055,7 +1075,7 @@ test('ケア予定と備忘録を繰り返し設定付きのiCalendar形式で�
   };
   await seed(page, [{ ...plants[0], plans: [plan], logs: [] }], [reminder]);
   await page.goto('/');
-  await page.locator('#menuBtn').click();
+  await openMore(page);
   await page.locator('#calendarExportBtn').click();
   await expect(page.locator('#calendarExportSummary')).toContainText('ケア予定 1件・備忘録 1件');
 
@@ -1082,8 +1102,8 @@ test('備忘録を編集・削除できる', async ({ page }) => {
   };
   await seed(page, [], [reminder]);
   await page.goto('/');
-  await page.locator('#menuBtn').click();
-  await page.locator('#remindersBtn').click();
+  await page.locator('#navRecordBtn').click();
+  await page.locator('#recordMenuReminder').click();
   await page.getByRole('button', { name: '編集' }).click();
   await page.locator('#reminderTitle').fill('液肥・追肥');
   await page.locator('#reminderMemo').fill('2000倍へ変更');
@@ -1094,8 +1114,8 @@ test('備忘録を編集・削除できる', async ({ page }) => {
   expect(saved.reminders[0].title).toBe('液肥・追肥');
   expect(saved.reminders[0].memo).toBe('2000倍へ変更');
 
-  await page.locator('#menuBtn').click();
-  await page.locator('#remindersBtn').click();
+  await page.locator('#navRecordBtn').click();
+  await page.locator('#recordMenuReminder').click();
   page.once('dialog', dialog => dialog.accept());
   await page.getByRole('button', { name: '削除' }).click();
   await expect(page.locator('#remindersList')).toContainText('備忘録はまだありません');

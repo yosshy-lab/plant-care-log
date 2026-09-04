@@ -256,11 +256,7 @@ $('navCalendarBtn').onclick=()=>{
   setView('calendar');
   trackPlantCareEvent('calendar_viewed');
 };
-$('navMoreBtn').onclick=event=>{
-  event.stopPropagation();
-  if($('dataMenu').hidden) $('menuBtn').click();
-  else closeDataMenu();
-};
+$('navMoreBtn').onclick=openMoreMenu;
 $('prevMonth').onclick=()=>{
   calendarMonth=new Date(calendarMonth.getFullYear(),calendarMonth.getMonth()-1,1);
   selectedCalendarDate=dateKey(calendarMonth);

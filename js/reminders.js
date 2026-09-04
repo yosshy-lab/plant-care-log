@@ -78,7 +78,6 @@ window.openCalendarReminder=date=>{
   openReminderEditor({date});
 };
 
-$('remindersBtn').onclick=openReminders;
 $('closeReminders').onclick=()=> $('remindersDialog').close();
 $('addReminder').onclick=()=>{
   $('remindersDialog').close();

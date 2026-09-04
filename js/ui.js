@@ -54,7 +54,9 @@ const RELEASE_NOTES=[
       '植物一覧で複数株を直接選び、水やり、ケア記録、予定、一括編集へ進めるようになりました。',
       '単発のケア予定は「完了」で履歴へ移し、「1日延期」で翌日へ変更できるようになりました。',
       '植物詳細を写真中心の画面へ刷新し、水やり間隔、次回予定、写真とケアの成長タイムラインを追加しました。',
-      '記録した成長写真から2枚を選び、並べて比較できるようになりました。'
+      '記録した成長写真から2枚を選び、並べて比較できるようになりました。',
+      '「その他」を整理・カレンダーと天気・設定・ヘルプの4区分に整理しました。',
+      'バックアップ、復元、保存容量の確認を、独立した「データ管理」画面へまとめました。'
     ]
   },
   {
@@ -153,7 +155,7 @@ function openReleaseNotes(source='menu'){
   closeDataMenu();
   const releases=source==='notice'?RELEASE_NOTES.slice(0,1):RELEASE_NOTES;
   $('releaseNotesHint').textContent=source==='notice'
-    ?'今回のアップデート内容です。過去の更新情報は右上メニューから確認できます。'
+    ?'今回のアップデート内容です。過去の更新情報は「その他」メニューから確認できます。'
     :'塊根植物記録の主な変更内容です。';
   $('releaseNotesList').innerHTML=releases.map((release,index)=>`
     <section class="release-note-item${index===0?' latest':''}">
@@ -1522,7 +1524,6 @@ function openBatchCareRecording(preselectedIds=[]){
   $('batchCareDialog').showModal();
 }
 
-$('batchCareBtn').onclick=()=>openBatchCareRecording();
 $('batchCarePlantList').onchange=updateBatchCareControls;
 $('batchCareSelectAll').onclick=()=>{
   const checks=[...document.querySelectorAll('.batch-care-plant-check')];
@@ -1566,7 +1567,6 @@ function openBatchPlanning(preselectedIds=[]){
   $('batchPlanDialog').showModal();
 }
 
-$('batchPlanBtn').onclick=()=>openBatchPlanning();
 $('batchPlanPlantList').onchange=updateBatchPlanControls;
 $('batchPlanSelectAll').onclick=()=>{
   const checks=[...document.querySelectorAll('.batch-plan-plant-check')];
@@ -1751,12 +1751,18 @@ window.removeLog=async(id,index,returnTo='history')=>{
   else showHistory(id);
 };
 
-$('menuBtn').onclick=e=>{
-  e.stopPropagation();
-  const willOpen=$('dataMenu').hidden;
-  $('dataMenu').hidden=!willOpen;
-  $('menuBtn').setAttribute('aria-expanded',String(willOpen));
-  if(willOpen) updatePhotoStorageStatus();
+function openMoreMenu(){
+  if($('dataMenu').open) return;
+  $('dataMenu').showModal();
+  $('menuBtn').setAttribute('aria-expanded','true');
+  $('navMoreBtn').setAttribute('aria-pressed','true');
+  $('navMoreBtn').classList.add('active');
+}
+
+$('menuBtn').onclick=openMoreMenu;
+$('closeMoreMenu').onclick=closeDataMenu;
+$('dataMenu').onclick=event=>{
+  if(event.target===$('dataMenu')) closeDataMenu();
 };
 
 $('helpBtn').onclick=()=>{
@@ -1791,6 +1797,7 @@ function openAnalyticsSettings(){
   $('analyticsDialog').showModal();
 }
 $('helpAnalyticsSettingsBtn').onclick=openAnalyticsSettings;
+$('analyticsSettingsBtn').onclick=openAnalyticsSettings;
 $('cancelAnalytics').onclick=()=> $('analyticsDialog').close();
 $('saveAnalytics').onclick=()=>{
   const enabled=$('analyticsEnabled').checked;
@@ -1800,18 +1807,28 @@ $('saveAnalytics').onclick=()=>{
 };
 
 function closeDataMenu(){
-  $('dataMenu').hidden=true;
+  if($('dataMenu').open) $('dataMenu').close();
   $('menuBtn').setAttribute('aria-expanded','false');
+  $('navMoreBtn').setAttribute('aria-pressed','false');
+  $('navMoreBtn').classList.remove('active');
 }
 
-document.addEventListener('click',e=>{
-  if(!$('menuWrap').contains(e.target)) closeDataMenu();
-});
-document.addEventListener('keydown',e=>{
-  if(e.key==='Escape'){
-    closeDataMenu();
-  }
-});
+$('dataMenu').addEventListener('close',closeDataMenu);
+$('openDataManagementBtn').onclick=()=>{
+  closeDataMenu();
+  renderBackupStatus();
+  updatePhotoStorageStatus();
+  $('dataManagementDialog').showModal();
+  trackPlantCareEvent('data_management_viewed');
+};
+$('closeDataManagement').onclick=()=> $('dataManagementDialog').close();
+$('dataManagementDialog').onclick=event=>{
+  if(event.target===$('dataManagementDialog')) $('dataManagementDialog').close();
+};
+$('backToMoreMenu').onclick=()=>{
+  $('dataManagementDialog').close();
+  openMoreMenu();
+};
 
 $('navRecordBtn').onclick=()=>{
   $('recordMenuDialog').showModal();
@@ -1835,7 +1852,6 @@ $('recordMenuReminder').onclick=()=>{
   openReminders();
 };
 
-$('batchWaterBtn').onclick=()=>openBatchWatering();
 $('batchShortcutBtn').onclick=async()=>{
   closeDataMenu();
   const url=location.origin + location.pathname + '?water=batch';

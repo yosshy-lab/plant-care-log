@@ -203,6 +203,10 @@ function renderBackupStatus(){
   $('restorePreImportBtn').hidden=!localStorage.getItem(PRE_RESTORE_KEY);
   $('menuBtn').classList.toggle('backup-due',due);
   $('menuBtn').setAttribute('aria-label',due?'メニュー（バックアップをおすすめします）':'メニュー');
+  $('navMoreBtn').classList.toggle('backup-due',due);
+  $('navMoreBtn').setAttribute('aria-label',due?'その他（バックアップをおすすめします）':'その他');
+  $('openDataManagementBtn').classList.toggle('attention',due);
+  $('dataManagementSummary').textContent=due?'バックアップをおすすめします':'バックアップと復元';
 }
 
 function notifyBackupDue(){
