@@ -427,7 +427,7 @@ test('バックアップに件数とバージョン情報を含めて保存す�
   expect(payload).toMatchObject({
     format: 'plant-care-log-backup',
     schemaVersion: 1,
-    appVersion: '1.11.0'
+    appVersion: '1.12.0'
   });
   expect(payload.plants).toHaveLength(3);
   expect(payload.reminders).toEqual([reminder]);

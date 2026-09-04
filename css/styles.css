@@ -512,8 +512,8 @@ dialog.action-sheet-dialog{width:min(100%,680px);margin:auto auto 0;border-radiu
   .today-stat strong{font-size:19px}
   .list-actions-toolbar{margin-top:0}
   .menu-panel{
-    position:fixed;left:10px;right:10px;top:auto;bottom:calc(78px + env(safe-area-inset-bottom));
-    width:auto;max-height:calc(100dvh - 110px);border-radius:18px
+    position:fixed;left:10px;right:10px;top:calc(72px + env(safe-area-inset-top));
+    bottom:calc(78px + env(safe-area-inset-bottom));width:auto;max-height:none;border-radius:18px
   }
 }
 
