@@ -38,8 +38,8 @@
 <link rel="apple-touch-icon" sizes="180x180" href="./apple-touch-icon.png">
 <link rel="icon" type="image/png" href="./apple-touch-icon.png">
 <title>塊根植物記録</title>
-<script src="./js/analytics.js?v=1.12.0"></script>
-<link rel="stylesheet" href="./css/styles.css?v=1.12.0">
+<script src="./js/analytics.js?v=1.13.0"></script>
+<link rel="stylesheet" href="./css/styles.css?v=1.13.0">
 </head>
 <body>
 <div class="wrap">
@@ -155,27 +155,56 @@
         </div>
         <button class="secondary" id="nextMonth" aria-label="次の月">›</button>
       </div>
-      <div class="calendar-filters">
-        <select id="calendarPlantFilter" aria-label="植物で絞り込み"></select>
-        <select id="calendarCareFilter" aria-label="ケアの種類で絞り込み">
-          <option value="">すべてのケア</option>
-          <option>水やり</option><option>薬剤散布</option><option>植え替え</option>
-          <option>施肥</option><option>状態・写真記録</option>
-        </select>
+
+      <div id="calendarFilterChips" class="calendar-filter-chips" role="group" aria-label="表示する予定と記録">
+        <button class="active" type="button" data-calendar-filter="all" aria-pressed="true">すべて</button>
+        <button type="button" data-calendar-filter="water" aria-pressed="false"><i class="event-dot water" aria-hidden="true"></i>水やり</button>
+        <button type="button" data-calendar-filter="care" aria-pressed="false"><i class="event-dot growth" aria-hidden="true"></i>ケア</button>
+        <button type="button" data-calendar-filter="planned" aria-pressed="false"><i class="event-dot planned" aria-hidden="true"></i>予定</button>
+        <button type="button" data-calendar-filter="reminder" aria-pressed="false"><i class="event-dot reminder" aria-hidden="true"></i>備忘録</button>
+        <button type="button" data-calendar-filter="weather" aria-pressed="false"><i class="event-dot rain" aria-hidden="true"></i>天気</button>
       </div>
-      <div class="calendar-legend">
-        <span class="legend-item"><i class="event-dot water"></i>水やり</span>
-        <span class="legend-item"><i class="event-dot pesticide"></i>薬剤</span>
-        <span class="legend-item"><i class="event-dot repot"></i>植え替え</span>
-        <span class="legend-item"><i class="event-dot fertilize"></i>施肥</span>
-        <span class="legend-item"><i class="event-dot growth"></i>状態・写真</span>
-        <span class="legend-item"><i class="event-dot planned"></i>予定</span>
-        <span class="legend-item"><i class="event-dot reminder"></i>備忘録</span>
-        <span class="legend-item"><i class="event-dot rain"></i>降雨</span>
-        <span class="legend-item"><i class="event-dot rain-equivalent"></i>水やり相当候補</span>
+
+      <details class="calendar-options" id="calendarOptions">
+        <summary><span>植物・ケアで絞り込む</span><small id="calendarFilterSummary">すべて表示中</small></summary>
+        <div class="calendar-filters">
+          <select id="calendarPlantFilter" aria-label="植物で絞り込み"></select>
+          <select id="calendarCareFilter" aria-label="ケアの種類で絞り込み">
+            <option value="">すべてのケア</option>
+            <option>水やり</option><option>薬剤散布</option><option>植え替え</option>
+            <option>施肥</option><option>状態・写真記録</option>
+          </select>
+        </div>
+      </details>
+
+      <details class="calendar-legend-details" id="calendarLegendDetails">
+        <summary>色と記号の見かた</summary>
+        <div class="calendar-legend">
+          <span class="legend-item"><i class="event-dot water"></i>水やり</span>
+          <span class="legend-item"><i class="event-dot pesticide"></i>薬剤</span>
+          <span class="legend-item"><i class="event-dot repot"></i>植え替え</span>
+          <span class="legend-item"><i class="event-dot fertilize"></i>施肥</span>
+          <span class="legend-item"><i class="event-dot growth"></i>状態・写真</span>
+          <span class="legend-item"><i class="event-dot planned"></i>予定</span>
+          <span class="legend-item"><i class="event-dot reminder"></i>備忘録</span>
+          <span class="legend-item"><i class="event-dot rain"></i>降雨</span>
+          <span class="legend-item"><i class="event-dot rain-equivalent"></i>水やり相当候補</span>
+        </div>
+      </details>
+
+      <div class="calendar-workspace">
+        <div class="calendar-month-surface">
+          <div id="calendarGrid" class="calendar-grid"></div>
+        </div>
+        <button id="calendarDayBackdrop" class="calendar-day-backdrop" type="button" aria-label="選択日の詳細を閉じる" hidden></button>
+        <aside id="calendarDayPanel" class="calendar-day-panel" aria-label="選択日の記録と予定">
+          <div class="calendar-day-panel-header">
+            <div><span class="screen-eyebrow">選択した日</span><strong id="calendarDayPanelTitle"></strong></div>
+            <button id="closeCalendarDayPanel" class="secondary calendar-day-panel-close" type="button" aria-label="選択日の詳細を閉じる">×</button>
+          </div>
+          <div id="calendarDayDetails" class="day-details" aria-live="polite"></div>
+        </aside>
       </div>
-      <div id="calendarGrid" class="calendar-grid"></div>
-      <div id="calendarDayDetails" class="day-details"></div>
       <div class="weather-attribution">天気：<a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a> ／ 所在地：<a href="https://maps.gsi.go.jp/" target="_blank" rel="noopener">国土地理院</a></div>
     </div>
   </div>
@@ -326,6 +355,7 @@
         <p>管理終了にした株は通常一覧から非表示になります。「管理終了のみ」または「すべての管理状態」で再表示できます。</p>
         <p>「その他」メニューの「株を並べ替える」から、一覧やまとめて水やりに表示する順序を変更できます。</p>
         <p>カレンダーではケア履歴や予定、取得済みの降水量を日付ごとに確認できます。</p>
+        <p>表示切替チップで水やり、ケア、予定、備忘録、天気だけに絞り込めます。日付を選ぶと、スマートフォンでは画面下部、広い画面では月表示の横に詳しい内容が表示されます。</p>
         <p>ケア予定や備忘録は、個別またはまとめてiCalendar（.ics）ファイルへ書き出し、iPhoneやMacのカレンダーへ追加できます。アプリ内の変更は、追加済みのカレンダー予定へ自動同期されません。</p>
       </div>
     </details>
@@ -868,14 +898,14 @@
   </div>
 </dialog>
 
-<script src="./js/storage.js?v=1.12.0"></script>
-<script src="./js/photo-storage.js?v=1.12.0"></script>
-<script src="./js/ui.js?v=1.12.0"></script>
-<script src="./js/reminders.js?v=1.12.0"></script>
-<script src="./js/calendar.js?v=1.12.0"></script>
-<script src="./js/calendar-export.js?v=1.12.0"></script>
-<script src="./js/weather.js?v=1.12.0"></script>
-<script src="./js/today.js?v=1.12.0"></script>
-<script src="./js/app.js?v=1.12.0"></script>
+<script src="./js/storage.js?v=1.13.0"></script>
+<script src="./js/photo-storage.js?v=1.13.0"></script>
+<script src="./js/ui.js?v=1.13.0"></script>
+<script src="./js/reminders.js?v=1.13.0"></script>
+<script src="./js/calendar.js?v=1.13.0"></script>
+<script src="./js/calendar-export.js?v=1.13.0"></script>
+<script src="./js/weather.js?v=1.13.0"></script>
+<script src="./js/today.js?v=1.13.0"></script>
+<script src="./js/app.js?v=1.13.0"></script>
 </body>
 </html>

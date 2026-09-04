@@ -1,4 +1,4 @@
-const APP_VERSION='1.12.0';
+const APP_VERSION='1.13.0';
 const KEY='plant-care-log-v1';
 const WEATHER_KEY='plant-care-weather-v1';
 const LIST_LAYOUT_KEY='plant-care-list-layout-v1';

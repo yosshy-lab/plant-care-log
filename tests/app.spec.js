@@ -37,7 +37,7 @@ test('主要画面がJavaScriptエラーなく表示される', async ({ page })
   page.on('pageerror', error => errors.push(error.message));
   await page.goto('/');
   await expect(page).toHaveTitle('塊根植物記録');
-  await expect(page.locator('#appVersionDisplay')).toHaveText('v1.12.0');
+  await expect(page.locator('#appVersionDisplay')).toHaveText('v1.13.0');
   await expect(page.locator('#addBtn')).toBeVisible();
   await expect(page.locator('#plantSearch')).toBeVisible();
   await expect(page.locator('#navCalendarBtn')).toBeVisible();
@@ -126,12 +126,12 @@ test('更新案内は新バージョンの初回だけ表示しメニューか�
   await seed(page);
   await page.goto('/');
   await expect(page.locator('#releaseNotice')).toBeVisible();
-  await expect(page.locator('#releaseNotice')).toContainText('v1.12.0 更新');
-  await expect(page.locator('#releaseNotice')).toContainText('今日画面と成長タイムラインを追加');
+  await expect(page.locator('#releaseNotice')).toContainText('v1.13.0 更新');
+  await expect(page.locator('#releaseNotice')).toContainText('カレンダーを見やすく刷新');
 
   await page.locator('#releaseNoticeDetails').click();
   await expect(page.locator('#releaseNotesDialog')).toBeVisible();
-  await expect(page.locator('#releaseNotesList')).toContainText('v1.12.0');
+  await expect(page.locator('#releaseNotesList')).toContainText('v1.13.0');
   await expect(page.locator('#releaseNotesList')).not.toContainText('v1.9.0');
   await expect(page.locator('#releaseNotesHint')).toContainText('今回のアップデート内容');
   await page.locator('#closeReleaseNotes').click();
@@ -142,6 +142,7 @@ test('更新案内は新バージョンの初回だけ表示しメニューか�
   await openMore(page);
   await page.locator('#releaseNotesBtn').click();
   await expect(page.locator('#releaseNotesDialog')).toBeVisible();
+  await expect(page.locator('#releaseNotesList')).toContainText('v1.13.0');
   await expect(page.locator('#releaseNotesList')).toContainText('v1.12.0');
   await expect(page.locator('#releaseNotesList')).toContainText('v1.11.0');
   await expect(page.locator('#releaseNotesList')).toContainText('v1.9.0');
@@ -417,6 +418,55 @@ test('今日へ戻るを年月の横へ小さく表示する', async ({ page }) 
   expect(todayFont).toBeLessThan(previousFont);
 });
 
+test('カレンダーを種類別に絞り込み選択日の詳細を確認できる', async ({ page }) => {
+  const selected=new Date();
+  selected.setHours(9,0,0,0);
+  const key=`${selected.getFullYear()}-${String(selected.getMonth()+1).padStart(2,'0')}-${String(selected.getDate()).padStart(2,'0')}`;
+  const planAt=new Date(selected); planAt.setHours(11);
+  const reminderAt=new Date(selected); reminderAt.setHours(13);
+  const calendarPlant={
+    ...plants[0],
+    logs:[
+      {time:selected.getTime(),care:'水やり',type:'通常',fertilizer:'なし'},
+      {time:selected.getTime()+60_000,care:'薬剤散布',details:{name:'ベニカ',target:'ハダニ'}}
+    ],
+    plans:[{id:'calendar-ui-plan',startAt:planAt.getTime(),care:'施肥',details:{fertilizerName:'ハイポネックス'},recurrence:{unit:'none',interval:1}}]
+  };
+  const reminder={id:'calendar-ui-reminder',title:'遮光を確認',startAt:reminderAt.getTime(),recurrence:{unit:'none',interval:1}};
+  await seed(page,[calendarPlant],[reminder]);
+  await page.goto('/');
+  await page.locator('#navCalendarBtn').click();
+
+  await expect(page.locator('[data-calendar-filter]')).toHaveCount(6);
+  await expect(page.locator('.calendar-day.today .calendar-event-count')).toHaveCount(3);
+  await expect(page.locator('.calendar-day.today .more-mark')).toHaveText('+1');
+  await page.locator('#calendarLegendDetails > summary').click();
+  await expect(page.locator('#calendarLegendDetails')).toHaveAttribute('open','');
+
+  await page.locator('[data-calendar-filter="water"]').click();
+  await expect(page.locator('#calendarDayDetails')).toContainText('グラキリス・水やり');
+  await expect(page.locator('#calendarDayDetails')).not.toContainText('薬剤散布');
+  await page.locator('[data-calendar-filter="care"]').click();
+  await expect(page.locator('#calendarDayDetails')).toContainText('グラキリス・薬剤散布');
+  await expect(page.locator('#calendarDayDetails')).not.toContainText('施肥予定');
+  await page.locator('[data-calendar-filter="planned"]').click();
+  await expect(page.locator('#calendarDayDetails')).toContainText('グラキリス・施肥予定');
+  await page.locator('[data-calendar-filter="reminder"]').click();
+  await expect(page.locator('#calendarDayDetails')).toContainText('遮光を確認');
+
+  await page.evaluate(date=>window.selectCalendarDate(date),key);
+  await expect(page.locator('#calendarDayPanelTitle')).not.toBeEmpty();
+  if(page.viewportSize().width<=640){
+    await expect(page.locator('#calendarDayPanel')).toHaveClass(/open/);
+    await expect(page.locator('#calendarDayBackdrop')).toBeVisible();
+    await page.locator('#closeCalendarDayPanel').click();
+    await expect(page.locator('#calendarDayBackdrop')).toBeHidden();
+  }else{
+    await expect(page.locator('#calendarDayPanel')).toBeVisible();
+    await expect(page.locator('#calendarDayBackdrop')).toBeHidden();
+  }
+});
+
 test('一覧の水やりは1件だけ記録し、連打時の重複を防ぐ', async ({ page }) => {
   await seed(page, [plants[0]]);
   await page.goto('/');
@@ -488,7 +538,7 @@ test('バックアップに件数とバージョン情報を含めて保存す�
   expect(payload).toMatchObject({
     format: 'plant-care-log-backup',
     schemaVersion: 1,
-    appVersion: '1.12.0'
+    appVersion: '1.13.0'
   });
   expect(payload.plants).toHaveLength(3);
   expect(payload.reminders).toEqual([reminder]);

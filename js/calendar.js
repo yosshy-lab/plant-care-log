@@ -11,7 +11,11 @@ const CARE_CLASSES={
 };
 let calendarMonth=new Date(new Date().getFullYear(),new Date().getMonth(),1);
 let selectedCalendarDate=dateKey(new Date());
+let calendarDisplayFilter='all';
 const APP_VIEW_KEY='plant-care-view-v1';
+const CALENDAR_FILTER_LABELS={
+  all:'すべて',water:'水やり',care:'ケア',planned:'予定',reminder:'備忘録',weather:'天気'
+};
 
 function savedAppView(){
   try{
@@ -40,6 +44,30 @@ function renderCalendarFilters(){
     `<option value="${esc(p.id)}">${esc(p.name)}</option>`
   ).join('');
   if([...select.options].some(o=>o.value===current)) select.value=current;
+  renderCalendarFilterSummary();
+}
+
+function renderCalendarFilterSummary(){
+  const plant=$('calendarPlantFilter').selectedOptions[0]?.textContent || 'すべての植物';
+  const care=$('calendarCareFilter').selectedOptions[0]?.textContent || 'すべてのケア';
+  const parts=[];
+  if($('calendarPlantFilter').value) parts.push(plant);
+  if($('calendarCareFilter').value) parts.push(care);
+  $('calendarFilterSummary').textContent=parts.length?parts.join('・'):'すべて表示中';
+}
+
+function calendarEventKind(event){
+  if(event.globalReminder) return 'reminder';
+  if(event.planned) return 'planned';
+  return event.care==='水やり'?'water':'care';
+}
+
+function matchesCalendarDisplayFilter(event){
+  return calendarDisplayFilter==='all' || calendarEventKind(event)===calendarDisplayFilter;
+}
+
+function calendarRainForDate(date){
+  return ['all','weather'].includes(calendarDisplayFilter)?rainfallForDate(date):null;
 }
 
 function planOccursOnDate(plan,date){
@@ -90,8 +118,28 @@ function calendarEventsFor(date){
       }
     });
   }
-  return events.sort((a,b)=>Number(a.planned)-Number(b.planned) ||
+  return events.filter(matchesCalendarDisplayFilter).sort((a,b)=>Number(a.planned)-Number(b.planned) ||
     Number(b.log.time || b.log.startAt)-Number(a.log.time || a.log.startAt));
+}
+
+function calendarDayMarkers(events,rain){
+  const counts={};
+  const labels={water:'水やり',pesticide:'薬剤',repot:'植え替え',fertilize:'施肥',growth:'状態・写真',planned:'予定',reminder:'備忘録',rain:'降雨','rain-equivalent':'水やり相当候補'};
+  events.forEach(event=>{
+    const kind=event.globalReminder?'reminder':event.planned?'planned':(CARE_CLASSES[event.care] || 'growth');
+    counts[kind]=(counts[kind] || 0)+1;
+  });
+  if(rain!==null){
+    const kind=rain>=Number(weather.equivalentThreshold)?'rain-equivalent':'rain';
+    counts[kind]=(counts[kind] || 0)+1;
+  }
+  const items=Object.entries(counts);
+  const visible=items.slice(0,3).map(([kind,count])=>`<span class="calendar-event-count ${kind}" title="${labels[kind]} ${count}件">${count}</span>`).join('');
+  const hiddenCount=items.slice(3).reduce((total,item)=>total+item[1],0);
+  return {
+    html:`${visible}${hiddenCount?`<span class="more-mark">+${hiddenCount}</span>`:''}`,
+    label:items.map(([kind,count])=>`${labels[kind]}${count}件`).join('、')
+  };
 }
 
 function renderCalendar(){
@@ -109,24 +157,17 @@ function renderCalendar(){
     day.setDate(start.getDate()+i);
     const key=dateKey(day);
     const events=calendarEventsFor(key);
-    const rain=rainfallForDate(key);
-    const rainMarker=rain===null?'':`<i class="event-dot ${rain>=Number(weather.equivalentThreshold)?'rain-equivalent':'rain'}" title="${rainLabelForDate(key)} ${rain.toFixed(1)}mm${weatherCitySuffix()}"></i>`;
-    const eventLimit=rain===null?5:4;
-    const markers=events.slice(0,eventLimit).map(event=>{
-      if(event.globalReminder) return '<i class="event-dot reminder" title="備忘録"></i>';
-      if(event.planned) return '<i class="event-dot planned" title="予定"></i>';
-      const photo=event.log.photo ? '<span class="photo-mark">📷</span>' : '';
-      return `<i class="event-dot ${CARE_CLASSES[event.care] || 'growth'}"></i>${photo}`;
-    }).join('');
-    const more=events.length>eventLimit?`<span class="more-mark">+${events.length-eventLimit}</span>`:'';
+    const rain=calendarRainForDate(key);
+    const markers=calendarDayMarkers(events,rain);
     const classes=['calendar-day'];
     if(day.getDay()===0) classes.push('sunday');
     if(day.getDay()===6) classes.push('saturday');
     if(day.getMonth()!==month) classes.push('other');
     if(key===today) classes.push('today');
     if(key===selectedCalendarDate) classes.push('selected');
-    html+=`<button class="${classes.join(' ')}" onclick="selectCalendarDate('${key}')">
-      <span class="day-number">${day.getDate()}</span><span class="event-dots">${rainMarker}${markers}${more}</span>
+    const readableDate=new Intl.DateTimeFormat('ja-JP',{month:'long',day:'numeric',weekday:'short'}).format(day);
+    html+=`<button class="${classes.join(' ')}" onclick="selectCalendarDate('${key}')" aria-label="${readableDate}${markers.label?`、${markers.label}`:''}" aria-controls="calendarDayPanel" aria-pressed="${key===selectedCalendarDate}">
+      <span class="day-number">${day.getDate()}</span><span class="event-dots" aria-hidden="true">${markers.html}</span>
     </button>`;
   }
   $('calendarGrid').innerHTML=html;
@@ -135,7 +176,7 @@ function renderCalendar(){
 
 function renderCalendarDayDetails(){
   const events=calendarEventsFor(selectedCalendarDate);
-  const rain=rainfallForDate(selectedCalendarDate);
+  const rain=calendarRainForDate(selectedCalendarDate);
   const today=dateKey(new Date());
   const isToday=selectedCalendarDate===today;
   const canRecordRain=selectedCalendarDate<=today;
@@ -180,7 +221,7 @@ function renderCalendarDayDetails(){
         <button class="secondary calendar-entry-edit" type="button" onclick="editLog('${esc(String(event.plant.id))}',${event.logIndex},'calendar')">編集</button>
         <button class="danger calendar-entry-delete" type="button" onclick="removeLog('${esc(String(event.plant.id))}',${event.logIndex},'calendar')">削除</button>
       </div></div>`;
-  }).join(''):(rain===null?'<div class="empty">この日の記録・予定はありません。</div>':'');
+  }).join(''):(rain===null?'<div class="empty">表示条件に合う記録・予定はありません。</div>':'');
   const isFuture=selectedCalendarDate>dateKey(new Date());
   const addCareHtml=data.plants.some(plant=>plantManagementStatus(plant)!=='ended')
     ?`<button id="addCareForDateBtn" class="calendar-add-care" type="button" onclick="openCalendarCare('${selectedCalendarDate}')">＋ この日の${isFuture?'予定':'ケア'}を追加</button>`
@@ -188,12 +229,33 @@ function renderCalendarDayDetails(){
   const addReminderHtml=selectedCalendarDate>today
     ?`<button id="addReminderForDateBtn" class="calendar-add-reminder" type="button" onclick="openCalendarReminder('${selectedCalendarDate}')">＋ この日の備忘録を追加</button>`
     :'';
-  $('calendarDayDetails').innerHTML=`<h3>${title}</h3><div class="calendar-add-actions">${addCareHtml}${addReminderHtml}</div>${rainHtml}${careHtml}`;
+  const total=events.length+(rain===null?0:1);
+  $('calendarDayPanelTitle').textContent=title;
+  $('calendarDayDetails').innerHTML=`<div class="calendar-day-summary"><strong>${total}件</strong><span>${CALENDAR_FILTER_LABELS[calendarDisplayFilter]}を表示</span></div><div class="calendar-add-actions">${addCareHtml}${addReminderHtml}</div>${rainHtml}${careHtml}`;
+}
+
+function calendarUsesSheet(){
+  return window.matchMedia('(max-width: 640px)').matches;
+}
+
+function openCalendarDayPanel(){
+  if(!calendarUsesSheet()) return;
+  $('calendarDayPanel').classList.add('open');
+  $('calendarDayBackdrop').hidden=false;
+  document.body.classList.add('calendar-sheet-open');
+  window.setTimeout(()=>$('closeCalendarDayPanel').focus(),0);
+}
+
+function closeCalendarDayPanel(){
+  $('calendarDayPanel').classList.remove('open');
+  $('calendarDayBackdrop').hidden=true;
+  document.body.classList.remove('calendar-sheet-open');
 }
 
 let calendarCareDate='';
 
 window.openCalendarCare=date=>{
+  closeCalendarDayPanel();
   const plants=data.plants.filter(plant=>plantManagementStatus(plant)!=='ended');
   if(!plants.length) return toast('ケアを記録できる株がありません');
   const filteredId=$('calendarPlantFilter').value;
@@ -219,6 +281,7 @@ $('continueCalendarCare').onclick=()=>{
 window.selectCalendarDate=date=>{
   selectedCalendarDate=date;
   renderCalendar();
+  openCalendarDayPanel();
 };
 
 function setView(view,{persist=true}={}){
@@ -234,6 +297,7 @@ function setView(view,{persist=true}={}){
     else button.removeAttribute('aria-current');
   });
   if(selected!=='list' && typeof setListSelectionMode==='function') setListSelectionMode(false,{renderList:false});
+  if(selected!=='calendar') closeCalendarDayPanel();
   if(selected==='today' && typeof renderToday==='function') renderToday();
   if(selected==='calendar'){
     renderCalendarFilters();
@@ -258,11 +322,13 @@ $('navCalendarBtn').onclick=()=>{
 };
 $('navMoreBtn').onclick=openMoreMenu;
 $('prevMonth').onclick=()=>{
+  closeCalendarDayPanel();
   calendarMonth=new Date(calendarMonth.getFullYear(),calendarMonth.getMonth()-1,1);
   selectedCalendarDate=dateKey(calendarMonth);
   renderCalendar();
 };
 $('nextMonth').onclick=()=>{
+  closeCalendarDayPanel();
   calendarMonth=new Date(calendarMonth.getFullYear(),calendarMonth.getMonth()+1,1);
   selectedCalendarDate=dateKey(calendarMonth);
   renderCalendar();
@@ -270,8 +336,53 @@ $('nextMonth').onclick=()=>{
 $('todayBtn').onclick=()=>{
   const today=new Date();
   calendarMonth=new Date(today.getFullYear(),today.getMonth(),1);
-  selectedCalendarDate=dateKey(today);
+  window.selectCalendarDate(dateKey(today));
+};
+$('calendarFilterChips').onclick=event=>{
+  const button=event.target.closest('[data-calendar-filter]');
+  if(!button) return;
+  calendarDisplayFilter=button.dataset.calendarFilter;
+  document.querySelectorAll('[data-calendar-filter]').forEach(item=>{
+    const active=item===button;
+    item.classList.toggle('active',active);
+    item.setAttribute('aria-pressed',String(active));
+  });
+  if(['reminder','weather'].includes(calendarDisplayFilter)){
+    $('calendarPlantFilter').value='';
+    $('calendarCareFilter').value='';
+  }else if(calendarDisplayFilter==='water'){
+    $('calendarCareFilter').value='';
+  }
+  renderCalendarFilterSummary();
   renderCalendar();
 };
-$('calendarPlantFilter').onchange=renderCalendar;
-$('calendarCareFilter').onchange=renderCalendar;
+$('calendarPlantFilter').onchange=()=>{
+  if(['reminder','weather'].includes(calendarDisplayFilter)){
+    calendarDisplayFilter='all';
+    document.querySelectorAll('[data-calendar-filter]').forEach(item=>{
+      const active=item.dataset.calendarFilter==='all';
+      item.classList.toggle('active',active);
+      item.setAttribute('aria-pressed',String(active));
+    });
+  }
+  renderCalendarFilterSummary();
+  renderCalendar();
+};
+$('calendarCareFilter').onchange=()=>{
+  calendarDisplayFilter='all';
+  document.querySelectorAll('[data-calendar-filter]').forEach(item=>{
+    const active=item.dataset.calendarFilter==='all';
+    item.classList.toggle('active',active);
+    item.setAttribute('aria-pressed',String(active));
+  });
+  renderCalendarFilterSummary();
+  renderCalendar();
+};
+$('closeCalendarDayPanel').onclick=closeCalendarDayPanel;
+$('calendarDayBackdrop').onclick=closeCalendarDayPanel;
+document.addEventListener('keydown',event=>{
+  if(event.key==='Escape' && $('calendarDayPanel').classList.contains('open')) closeCalendarDayPanel();
+});
+window.addEventListener('resize',()=>{
+  if(!calendarUsesSheet()) closeCalendarDayPanel();
+});

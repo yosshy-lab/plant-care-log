@@ -75,6 +75,7 @@ window.removeReminder=id=>{
 
 window.openCalendarReminder=date=>{
   if(date<dateKey(new Date())) return toast('過去の日付には備忘録を追加できません');
+  if(typeof closeCalendarDayPanel==='function') closeCalendarDayPanel();
   openReminderEditor({date});
 };
 
