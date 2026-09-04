@@ -37,7 +37,7 @@ test('主要画面がJavaScriptエラーなく表示される', async ({ page })
   page.on('pageerror', error => errors.push(error.message));
   await page.goto('/');
   await expect(page).toHaveTitle('塊根植物記録');
-  await expect(page.locator('#appVersionDisplay')).toHaveText('v1.13.0');
+  await expect(page.locator('#appVersionDisplay')).toHaveText('v1.14.0');
   await expect(page.locator('#addBtn')).toBeVisible();
   await expect(page.locator('#plantSearch')).toBeVisible();
   await expect(page.locator('#navCalendarBtn')).toBeVisible();
@@ -126,12 +126,12 @@ test('更新案内は新バージョンの初回だけ表示しメニューか�
   await seed(page);
   await page.goto('/');
   await expect(page.locator('#releaseNotice')).toBeVisible();
-  await expect(page.locator('#releaseNotice')).toContainText('v1.13.0 更新');
-  await expect(page.locator('#releaseNotice')).toContainText('カレンダーを見やすく刷新');
+  await expect(page.locator('#releaseNotice')).toContainText('v1.14.0 更新');
+  await expect(page.locator('#releaseNotice')).toContainText('入力画面を迷わず使える形へ刷新');
 
   await page.locator('#releaseNoticeDetails').click();
   await expect(page.locator('#releaseNotesDialog')).toBeVisible();
-  await expect(page.locator('#releaseNotesList')).toContainText('v1.13.0');
+  await expect(page.locator('#releaseNotesList')).toContainText('v1.14.0');
   await expect(page.locator('#releaseNotesList')).not.toContainText('v1.9.0');
   await expect(page.locator('#releaseNotesHint')).toContainText('今回のアップデート内容');
   await page.locator('#closeReleaseNotes').click();
@@ -142,7 +142,7 @@ test('更新案内は新バージョンの初回だけ表示しメニューか�
   await openMore(page);
   await page.locator('#releaseNotesBtn').click();
   await expect(page.locator('#releaseNotesDialog')).toBeVisible();
-  await expect(page.locator('#releaseNotesList')).toContainText('v1.13.0');
+  await expect(page.locator('#releaseNotesList')).toContainText('v1.14.0');
   await expect(page.locator('#releaseNotesList')).toContainText('v1.12.0');
   await expect(page.locator('#releaseNotesList')).toContainText('v1.11.0');
   await expect(page.locator('#releaseNotesList')).toContainText('v1.9.0');
@@ -171,6 +171,34 @@ test('植物を登録し、保存後も表示できる', async ({ page }) => {
   await expect(card).toContainText('実生2026');
   await page.reload();
   await expect(page.locator('.plant-card', { hasText: 'テスト実生' })).toBeVisible();
+});
+
+test('植物の必須項目を入力欄の近くへ表示する', async ({ page }) => {
+  await seed(page);
+  await page.goto('/');
+  await page.locator('#addBtn').click();
+  await page.locator('#savePlant').click();
+
+  await expect(page.locator('#plantDialog')).toBeVisible();
+  await expect(page.locator('#plantName')).toHaveAttribute('aria-invalid', 'true');
+  await expect(page.locator('#plantNameError')).toHaveText('管理名を入力してください。');
+  await page.locator('#plantName').fill('入力確認株');
+  await expect(page.locator('#plantName')).not.toHaveAttribute('aria-invalid', 'true');
+});
+
+test('入力途中のキャンセル時に破棄を確認する', async ({ page }) => {
+  await seed(page);
+  await page.goto('/');
+  await page.locator('#addBtn').click();
+  await page.locator('#plantName').fill('まだ保存しない株');
+
+  page.once('dialog', dialog => dialog.dismiss());
+  await page.locator('#cancelPlant').click();
+  await expect(page.locator('#plantDialog')).toBeVisible();
+
+  page.once('dialog', dialog => dialog.accept());
+  await page.locator('#cancelPlant').click();
+  await expect(page.locator('#plantDialog')).toBeHidden();
 });
 
 test('株登録写真をIndexedDBへ保存しLocalStorageには画像本体を残さない', async ({ page }) => {
@@ -538,7 +566,7 @@ test('バックアップに件数とバージョン情報を含めて保存す�
   expect(payload).toMatchObject({
     format: 'plant-care-log-backup',
     schemaVersion: 1,
-    appVersion: '1.13.0'
+    appVersion: '1.14.0'
   });
   expect(payload.plants).toHaveLength(3);
   expect(payload.reminders).toEqual([reminder]);

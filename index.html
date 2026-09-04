@@ -38,8 +38,8 @@
 <link rel="apple-touch-icon" sizes="180x180" href="./apple-touch-icon.png">
 <link rel="icon" type="image/png" href="./apple-touch-icon.png">
 <title>塊根植物記録</title>
-<script src="./js/analytics.js?v=1.13.0"></script>
-<link rel="stylesheet" href="./css/styles.css?v=1.13.0">
+<script src="./js/analytics.js?v=1.14.0"></script>
+<link rel="stylesheet" href="./css/styles.css?v=1.14.0">
 </head>
 <body>
 <div class="wrap">
@@ -444,28 +444,38 @@
   </div>
 </dialog>
 
-<dialog id="plantDialog">
-  <div class="modal">
-    <h2 id="plantDialogTitle">植物を追加</h2>
-    <label>管理名 <span aria-hidden="true">*</span></label>
-    <input id="plantName" placeholder="例：パキポディウム ①">
-    <label>種類・品種（任意）</label>
-    <input id="plantType" placeholder="例：Pachypodium densicaule">
-    <label>生育区分</label>
+<dialog id="plantDialog" class="input-dialog">
+  <div class="modal input-modal">
+    <header class="form-dialog-header">
+      <div><span class="screen-eyebrow">株のプロフィール</span><h2 id="plantDialogTitle">植物を追加</h2></div>
+    </header>
+    <p class="form-intro"><span class="required-mark">必須</span> は管理名だけです。ほかの情報は後から追加できます。</p>
+    <section class="form-section" aria-labelledby="plantBasicHeading">
+      <div class="form-section-heading"><span class="form-section-number">1</span><div><h3 id="plantBasicHeading">基本情報</h3><p>一覧で見分けるための情報</p></div></div>
+      <label for="plantName">管理名 <span class="required-mark">必須</span></label>
+      <input id="plantName" placeholder="例：パキポディウム ①" maxlength="80" autocomplete="off" required aria-describedby="plantNameError">
+      <div class="field-error" id="plantNameError" aria-live="polite"></div>
+      <label for="plantType">種類・品種 <span class="optional-mark">任意</span></label>
+      <input id="plantType" placeholder="例：Pachypodium densicaule" autocomplete="off">
+      <div class="form-grid-two"><div>
+    <label for="plantStage">生育区分</label>
     <select id="plantStage">
       <option>成株</option>
       <option>実生</option>
       <option>播種</option>
     </select>
-    <label>管理状態</label>
+      </div><div>
+    <label for="plantManagementStatus">管理状態</label>
     <select id="plantManagementStatus">
       <option value="active">管理中</option>
       <option value="dormant">休眠中</option>
       <option value="ended">管理終了</option>
     </select>
+      </div></div>
+    </section>
 
-    <details class="optional-section" id="acquisitionSection">
-      <summary>入手情報（任意）</summary>
+    <details class="optional-section form-section" id="acquisitionSection">
+      <summary><span><strong>2　入手情報</strong><small>入手日・入手先・由来</small></span></summary>
       <div class="optional-section-body">
         <label>入手日</label>
         <div class="date-field"><input id="plantAcquiredDate" type="date"></div>
@@ -498,8 +508,8 @@
       </div>
     </details>
 
-    <details class="optional-section" id="cultivationSection">
-      <summary>栽培情報・メモ（任意）</summary>
+    <details class="optional-section form-section" id="cultivationSection">
+      <summary><span><strong>3　栽培情報</strong><small>管理場所・タグ・雨の当たり方</small></span></summary>
       <div class="optional-section-body">
         <div id="seedDateFields" class="conditional-fields" hidden>
           <label>播種日</label>
@@ -517,27 +527,31 @@
           <option value="rain">雨が当たる</option>
           <option value="sheltered">軒下・室内（雨が当たらない）</option>
         </select>
-        <label>メモ</label>
+        <label>メモ <span class="optional-mark">任意</span></label>
         <textarea id="plantMemo" placeholder="特徴や入手時の状態など"></textarea>
-        <label>登録時の写真</label>
-        <input id="plantPhoto" type="file" accept="image/*">
-        <div class="field-help">写真は端末内の写真ストレージへ圧縮保存され、バックアップにも含まれます。</div>
-        <img id="plantPhotoPreview" class="plant-photo-preview" alt="登録写真のプレビュー">
-        <button class="danger" id="removePlantPhoto" type="button" style="display:none;margin-top:8px;padding:8px 10px;font-size:12px">写真を削除</button>
       </div>
     </details>
+    <section class="form-section photo-form-section" aria-labelledby="plantPhotoHeading">
+      <div class="form-section-heading"><span class="form-section-number">4</span><div><h3 id="plantPhotoHeading">写真</h3><p>株を見分けやすくする1枚</p></div></div>
+      <label class="file-picker" for="plantPhoto"><span aria-hidden="true">▣</span><strong>写真を選ぶ</strong><small>端末内へ縮小して保存します</small></label>
+      <input id="plantPhoto" class="visually-hidden-file" type="file" accept="image/*">
+      <img id="plantPhotoPreview" class="plant-photo-preview" alt="登録写真のプレビュー">
+      <button class="danger compact-danger" id="removePlantPhoto" type="button" style="display:none">写真を削除</button>
+    </section>
     <div class="record-meta" id="plantRecordMeta" hidden></div>
-    <div class="actions">
+    <div class="actions form-actions">
       <button class="secondary" id="cancelPlant">キャンセル</button>
       <button id="savePlant">登録する</button>
     </div>
   </div>
 </dialog>
 
-<dialog id="careDialog">
-  <div class="modal">
-    <h2 id="careTitle">ケア記録</h2>
-    <label>ケアの種類</label>
+<dialog id="careDialog" class="input-dialog">
+  <div class="modal input-modal">
+    <header class="form-dialog-header"><div><span class="screen-eyebrow" id="careModeLabel">ケア内容を入力</span><h2 id="careTitle">ケア記録</h2></div></header>
+    <section class="form-section">
+    <div class="form-section-heading compact"><span class="form-section-number">1</span><div><h3>種類と日時</h3><p>何を、いつ行ったかを選びます</p></div></div>
+    <label for="careType">ケアの種類</label>
     <select id="careType">
       <option>水やり</option>
       <option>薬剤散布</option>
@@ -545,8 +559,9 @@
       <option>施肥</option>
       <option>状態・写真記録</option>
     </select>
-    <label id="careDateLabel">記録日時</label>
-    <div class="date-field"><input id="careRecordedAt" type="datetime-local"></div>
+    <label id="careDateLabel" for="careRecordedAt">記録日時</label>
+    <div class="date-field"><input id="careRecordedAt" type="datetime-local" required aria-describedby="careRecordedAtError careDateHint"></div>
+    <div class="field-error" id="careRecordedAtError" aria-live="polite"></div>
     <div id="careDateHint" class="hint">記録を忘れた場合は、実際にケアした過去の日時へ変更できます。</div>
     <div id="recurrenceFields" class="recurrence-fields" hidden>
       <label>繰り返し</label>
@@ -565,6 +580,9 @@
       </div>
       <div id="recurrenceSummary" class="hint">この日時に1回だけ予定します。</div>
     </div>
+    </section>
+    <section class="form-section care-detail-section">
+      <div class="form-section-heading compact"><span class="form-section-number">2</span><div><h3>ケア内容</h3><p>選んだ種類に必要な項目だけ表示します</p></div></div>
     <div id="waterFields" class="care-fields">
       <label>水やり方法</label>
       <select id="waterType">
@@ -582,8 +600,9 @@
       <input id="waterAmount" placeholder="例：鉢底から流れるまで、200ml">
     </div>
     <div id="pesticideFields" class="care-fields" hidden>
-      <label>薬剤名</label>
-      <input id="pesticideName" placeholder="例：ベニカXファインスプレー">
+      <label for="pesticideName">薬剤名 <span class="required-mark">必須</span></label>
+      <input id="pesticideName" placeholder="例：ベニカXファインスプレー" aria-describedby="pesticideNameError">
+      <div class="field-error" id="pesticideNameError" aria-live="polite"></div>
       <label>対象</label>
       <input id="pesticideTarget" placeholder="例：ハダニ、カイガラムシ、殺菌">
       <label>希釈倍率（任意）</label>
@@ -610,8 +629,9 @@
       <input id="repotReason" placeholder="例：鉢増し、根詰まり、用土交換">
     </div>
     <div id="fertilizeFields" class="care-fields" hidden>
-      <label>肥料名</label>
-      <input id="fertilizerName" placeholder="例：ハイポネックス、マグァンプK">
+      <label for="fertilizerName">肥料名 <span class="required-mark">必須</span></label>
+      <input id="fertilizerName" placeholder="例：ハイポネックス、マグァンプK" aria-describedby="fertilizerNameError">
+      <div class="field-error" id="fertilizerNameError" aria-live="polite"></div>
       <label>種類</label>
       <select id="fertilizerForm">
         <option>液肥</option>
@@ -630,15 +650,15 @@
       <label>葉数（任意）</label>
       <input id="leafCount" inputmode="numeric" placeholder="例：18枚">
       <div id="carePhotoFields">
-        <label>写真（任意）</label>
-        <input id="carePhoto" type="file" accept="image/*">
-        <div class="hint">写真は端末内の写真ストレージへ自動で縮小・圧縮して保存します。</div>
+        <label class="file-picker" for="carePhoto"><span aria-hidden="true">▣</span><strong>状態写真を選ぶ</strong><small>端末内へ縮小して保存します</small></label>
+        <input id="carePhoto" class="visually-hidden-file" type="file" accept="image/*">
         <img id="photoPreview" class="photo-preview" alt="選択した写真のプレビュー">
       </div>
     </div>
-    <label>メモ（任意）</label>
+    <label for="waterNote">メモ <span class="optional-mark">任意</span></label>
     <textarea id="waterNote" placeholder="例：朝に灌水、植え替え後の状態良好"></textarea>
-    <div class="actions">
+    </section>
+    <div class="actions form-actions">
       <button class="secondary" id="cancelCare">キャンセル</button>
       <button id="saveCare">記録する</button>
     </div>
@@ -665,13 +685,17 @@
   </div>
 </dialog>
 
-<dialog id="reminderDialog">
-  <div class="modal">
-    <h2 id="reminderDialogTitle">備忘録を追加</h2>
-    <label>予定名</label>
-    <input id="reminderTitle" placeholder="例：液肥、遮光ネットを変更" maxlength="80">
-    <label>予定日時</label>
-    <div class="date-field"><input id="reminderStartAt" type="datetime-local"></div>
+<dialog id="reminderDialog" class="input-dialog">
+  <div class="modal input-modal">
+    <header class="form-dialog-header"><div><span class="screen-eyebrow">株を選ばない予定</span><h2 id="reminderDialogTitle">備忘録を追加</h2></div></header>
+    <p class="form-intro">作業や買い物など、植物を指定しない予定を登録します。</p>
+    <section class="form-section">
+    <label for="reminderTitle">予定名 <span class="required-mark">必須</span></label>
+    <input id="reminderTitle" placeholder="例：液肥、遮光ネットを変更" maxlength="80" required aria-describedby="reminderTitleError">
+    <div class="field-error" id="reminderTitleError" aria-live="polite"></div>
+    <label for="reminderStartAt">予定日時 <span class="required-mark">必須</span></label>
+    <div class="date-field"><input id="reminderStartAt" type="datetime-local" required aria-describedby="reminderStartAtError"></div>
+    <div class="field-error" id="reminderStartAtError" aria-live="polite"></div>
     <div class="recurrence-fields">
       <label>繰り返し</label>
       <select id="reminderRecurrenceUnit">
@@ -689,9 +713,10 @@
       </div>
       <div id="reminderRecurrenceSummary" class="hint">この日時に1回だけ表示します。</div>
     </div>
-    <label>メモ（任意）</label>
+    <label for="reminderMemo">メモ <span class="optional-mark">任意</span></label>
     <textarea id="reminderMemo" placeholder="例：ハイポネックスを2000倍で使用" maxlength="1000"></textarea>
-    <div class="actions">
+    </section>
+    <div class="actions form-actions">
       <button class="secondary" id="cancelReminder">キャンセル</button>
       <button id="saveReminder">予定を保存</button>
     </div>
@@ -898,14 +923,14 @@
   </div>
 </dialog>
 
-<script src="./js/storage.js?v=1.13.0"></script>
-<script src="./js/photo-storage.js?v=1.13.0"></script>
-<script src="./js/ui.js?v=1.13.0"></script>
-<script src="./js/reminders.js?v=1.13.0"></script>
-<script src="./js/calendar.js?v=1.13.0"></script>
-<script src="./js/calendar-export.js?v=1.13.0"></script>
-<script src="./js/weather.js?v=1.13.0"></script>
-<script src="./js/today.js?v=1.13.0"></script>
-<script src="./js/app.js?v=1.13.0"></script>
+<script src="./js/storage.js?v=1.14.0"></script>
+<script src="./js/photo-storage.js?v=1.14.0"></script>
+<script src="./js/ui.js?v=1.14.0"></script>
+<script src="./js/reminders.js?v=1.14.0"></script>
+<script src="./js/calendar.js?v=1.14.0"></script>
+<script src="./js/calendar-export.js?v=1.14.0"></script>
+<script src="./js/weather.js?v=1.14.0"></script>
+<script src="./js/today.js?v=1.14.0"></script>
+<script src="./js/app.js?v=1.14.0"></script>
 </body>
 </html>

@@ -49,8 +49,11 @@ function openReminderEditor({id=null,date=null}={}){
   $('reminderMemo').value=reminder?.memo || '';
   $('reminderRecurrenceUnit').value=reminder?.recurrence?.unit || 'none';
   $('reminderRecurrenceInterval').value=String(reminder?.recurrence?.interval || 1);
+  clearFieldError('reminderTitle');
+  clearFieldError('reminderStartAt');
   updateReminderRecurrenceFields();
   $('reminderDialog').showModal();
+  markInputPristine($('reminderDialog'));
 }
 
 window.editReminder=id=>{
@@ -84,14 +87,14 @@ $('addReminder').onclick=()=>{
   $('remindersDialog').close();
   openReminderEditor();
 };
-$('cancelReminder').onclick=()=> $('reminderDialog').close();
+$('cancelReminder').onclick=()=>requestInputDialogClose($('reminderDialog'));
 $('reminderRecurrenceUnit').onchange=updateReminderRecurrenceFields;
 $('reminderRecurrenceInterval').oninput=updateReminderRecurrenceFields;
 $('saveReminder').onclick=()=>{
   const title=$('reminderTitle').value.trim();
-  if(!title) return alert('予定名を入力してください');
+  if(!title) return showFieldError('reminderTitle','予定名を入力してください。');
   const startAt=new Date($('reminderStartAt').value).getTime();
-  if(!Number.isFinite(startAt)) return alert('予定日時を入力してください');
+  if(!Number.isFinite(startAt)) return showFieldError('reminderStartAt','予定日時を入力してください。');
   if(editingReminderId===null && startAt<=Date.now()) return alert('予定日時には現在より後の日時を入力してください');
   const recurrence={
     unit:$('reminderRecurrenceUnit').value,
@@ -112,7 +115,7 @@ $('saveReminder').onclick=()=>{
   else data.reminders.push(reminder);
   data.reminders.sort((a,b)=>Number(a.startAt)-Number(b.startAt));
   if(save()){
-    $('reminderDialog').close();
+    closeInputDialogAfterSave($('reminderDialog'));
     renderRemindersList();
     if(!$('calendarView').classList.contains('hidden')) renderCalendar();
     toast(index>=0?'備忘録を変更しました':'備忘録を登録しました');
