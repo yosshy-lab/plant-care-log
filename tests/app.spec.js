@@ -8,6 +8,7 @@ async function seed(page, plants = [], reminders = []) {
     if (!sessionStorage.getItem('playwright-data-seeded')) {
       localStorage.setItem(key, JSON.stringify({ plants: seededPlants, reminders: seededReminders }));
       localStorage.setItem('plant-care-analytics-enabled-v1', 'false');
+      localStorage.setItem('plant-care-view-v1', 'list');
       sessionStorage.setItem('playwright-data-seeded', 'true');
     }
   }, { key: storageKey, plants, reminders });
@@ -25,11 +26,37 @@ test('主要画面がJavaScriptエラーなく表示される', async ({ page })
   page.on('pageerror', error => errors.push(error.message));
   await page.goto('/');
   await expect(page).toHaveTitle('塊根植物記録');
-  await expect(page.locator('#appVersionDisplay')).toHaveText('v1.11.0');
+  await expect(page.locator('#appVersionDisplay')).toHaveText('v1.12.0');
   await expect(page.locator('#addBtn')).toBeVisible();
   await expect(page.locator('#plantSearch')).toBeVisible();
-  await expect(page.locator('#calendarViewBtn')).toBeVisible();
+  await expect(page.locator('#navCalendarBtn')).toBeVisible();
+  await expect(page.locator('#navTodayBtn')).toBeVisible();
+  await expect(page.locator('#navRecordBtn')).toBeVisible();
   expect(errors).toEqual([]);
+});
+
+test('今日画面で期限超過の予定を完了して履歴へ移せる', async ({ page }) => {
+  const overdueAt=Date.now()-60_000;
+  await seed(page, [{
+    ...plants[0],
+    logs: [],
+    plans: [{
+      id:'today-plan',startAt:overdueAt,care:'水やり',type:'たっぷり灌水',fertilizer:'なし',
+      details:{waterAmount:'鉢底から流れるまで'},note:'今日の確認',recurrence:{unit:'none',interval:1}
+    }]
+  }]);
+  await page.goto('/');
+  await page.locator('#navTodayBtn').click();
+  await expect(page.locator('#todayPlanCount')).toHaveText('1件');
+  await expect(page.locator('#overduePlanCount')).toHaveText('1件');
+  await expect(page.locator('.today-task')).toContainText('グラキリス');
+  await page.getByRole('button',{ name:'完了して記録' }).click();
+
+  const saved=await page.evaluate(key=>JSON.parse(localStorage.getItem(key)),storageKey);
+  expect(saved.plants[0].plans).toHaveLength(0);
+  expect(saved.plants[0].logs).toHaveLength(1);
+  expect(saved.plants[0].logs[0].care).toBe('水やり');
+  await expect(page.locator('#todayPlanCount')).toHaveText('0件');
 });
 
 test('SNS共有用のOGP画像とメタ情報を配信する', async ({ page }) => {
@@ -46,31 +73,31 @@ test('SNS共有用のOGP画像とメタ情報を配信する', async ({ page }) 
   expect(image.byteLength).toBeGreaterThan(100_000);
 });
 
-test('一覧専用の植物追加と横スクロール対応のまとめ操作を表示する', async ({ page }) => {
-  await seed(page, [plants[0]]);
+test('下部ナビと一覧の一括選択操作を表示する', async ({ page }) => {
+  await seed(page, [plants[0], plants[1]]);
   await page.goto('/');
-  const selectors=['#topBatchWaterBtn','#topBatchCareBtn','#topBatchPlanBtn','#topRemindersBtn'];
-  const buttons=selectors.map(selector=>page.locator(selector));
-  for(const button of buttons) await expect(button).toBeVisible();
   await expect(page.locator('#addBtn')).toBeVisible();
   await expect(page.locator('#addBtn')).toHaveClass(/list-add-button/);
+  await expect(page.locator('.bottom-nav')).toBeVisible();
 
-  const fit=await page.locator('.toolbar button').evaluateAll(elements=>elements.every(element=>element.scrollWidth<=element.clientWidth+1));
-  expect(fit).toBe(true);
-
-  await page.setViewportSize({ width: 390, height: 844 });
-  const scrollState=await page.locator('.toolbar').evaluate(element=>({clientWidth:element.clientWidth,scrollWidth:element.scrollWidth}));
-  expect(scrollState.scrollWidth).toBeGreaterThan(scrollState.clientWidth);
-  await expect(page.locator('#topRemindersBtn')).toBeVisible();
-
-  await page.locator('#topBatchPlanBtn').click();
+  await page.locator('#toggleSelectModeBtn').click();
+  await expect(page.locator('.plant-select-control input')).toHaveCount(2);
+  await page.locator('.plant-card').first().click();
+  await expect(page.locator('#selectionCount')).toHaveText('1株を選択中');
+  await expect(page.locator('#selectionActionBar')).toBeVisible();
+  await page.locator('#selectionPlanBtn').click();
   await expect(page.locator('#batchPlanDialog')).toBeVisible();
+  await expect(page.locator('.batch-plan-plant-check:checked')).toHaveCount(1);
   await page.locator('#cancelBatchPlan').click();
-  await page.locator('#topRemindersBtn').click();
-  await expect(page.locator('#remindersDialog')).toBeVisible();
-  await page.locator('#closeReminders').click();
 
-  await page.locator('#calendarViewBtn').click();
+  await page.locator('#navRecordBtn').click();
+  await expect(page.locator('#recordMenuDialog')).toBeVisible();
+  await page.locator('#closeRecordMenu').click();
+  await page.locator('#navMoreBtn').click();
+  await expect(page.locator('#dataMenu')).toBeVisible();
+  await page.locator('#navMoreBtn').click();
+  await expect(page.locator('#dataMenu')).toBeHidden();
+  await page.locator('#navCalendarBtn').click();
   await expect(page.locator('#addBtn')).toBeHidden();
 });
 
@@ -78,12 +105,12 @@ test('更新案内は新バージョンの初回だけ表示しメニューか�
   await seed(page);
   await page.goto('/');
   await expect(page.locator('#releaseNotice')).toBeVisible();
-  await expect(page.locator('#releaseNotice')).toContainText('v1.11.0 更新');
-  await expect(page.locator('#releaseNotice')).toContainText('まとめてケア記録と操作バーを追加');
+  await expect(page.locator('#releaseNotice')).toContainText('v1.12.0 更新');
+  await expect(page.locator('#releaseNotice')).toContainText('今日画面と下部ナビゲーションを追加');
 
   await page.locator('#releaseNoticeDetails').click();
   await expect(page.locator('#releaseNotesDialog')).toBeVisible();
-  await expect(page.locator('#releaseNotesList')).toContainText('v1.11.0');
+  await expect(page.locator('#releaseNotesList')).toContainText('v1.12.0');
   await expect(page.locator('#releaseNotesList')).not.toContainText('v1.9.0');
   await expect(page.locator('#releaseNotesHint')).toContainText('今回のアップデート内容');
   await page.locator('#closeReleaseNotes').click();
@@ -94,6 +121,7 @@ test('更新案内は新バージョンの初回だけ表示しメニューか�
   await page.locator('#menuBtn').click();
   await page.locator('#releaseNotesBtn').click();
   await expect(page.locator('#releaseNotesDialog')).toBeVisible();
+  await expect(page.locator('#releaseNotesList')).toContainText('v1.12.0');
   await expect(page.locator('#releaseNotesList')).toContainText('v1.11.0');
   await expect(page.locator('#releaseNotesList')).toContainText('v1.9.0');
   await expect(page.locator('#releaseNotesList')).toContainText('v1.8.1');
@@ -296,7 +324,7 @@ test('株の並び順を変更して保持できる', async ({ page }) => {
 test('カレンダーは日曜・土曜を区別して表示する', async ({ page }) => {
   await seed(page);
   await page.goto('/');
-  await page.locator('#calendarViewBtn').click();
+  await page.locator('#navCalendarBtn').click();
   await expect(page.locator('.calendar-day')).toHaveCount(42);
   await expect(page.locator('.calendar-day.sunday')).toHaveCount(6);
   await expect(page.locator('.calendar-day.saturday')).toHaveCount(6);
@@ -307,7 +335,7 @@ test('カレンダーは日曜・土曜を区別して表示する', async ({ pa
 test('今日へ戻るを年月の横へ小さく表示する', async ({ page }) => {
   await seed(page);
   await page.goto('/');
-  await page.locator('#calendarViewBtn').click();
+  await page.locator('#navCalendarBtn').click();
 
   const todayButton=page.locator('#todayBtn');
   const title=page.locator('#calendarTitle');
@@ -491,7 +519,7 @@ test('過去日時を指定してケアを記録しカレンダーへ反映す�
   expect(saved.plants[0].logs[0].time).toBe(new Date('2026-08-20T08:30').getTime());
   expect(saved.plants[0].logs[0].note).toBe('昨日分を追記');
 
-  await page.locator('#calendarViewBtn').click();
+  await page.locator('#navCalendarBtn').click();
   await page.evaluate(() => window.selectCalendarDate('2026-08-20'));
   await expect(page.locator('#calendarDayDetails')).toContainText('グラキリス・水やり');
   await expect(page.locator('#calendarDayDetails')).toContainText('150ml');
@@ -554,7 +582,7 @@ test('カレンダーからケア済み記録を編集・削除できる', async
   };
   await seed(page, [{ ...plants[0], logs: [log] }]);
   await page.goto('/');
-  await page.locator('#calendarViewBtn').click();
+  await page.locator('#navCalendarBtn').click();
   await page.evaluate(() => window.selectCalendarDate('2026-08-25'));
 
   const entry=page.locator('.calendar-care-entry');
@@ -590,7 +618,7 @@ test('カレンダーからケア予定を編集・削除できる', async ({ pa
   };
   await seed(page, [{ ...plants[0], plans: [plan], logs: [] }]);
   await page.goto('/');
-  await page.locator('#calendarViewBtn').click();
+  await page.locator('#navCalendarBtn').click();
   await page.evaluate(() => window.selectCalendarDate('2099-01-15'));
 
   const entry=page.locator('.calendar-plan-entry');
@@ -621,7 +649,7 @@ test('端末設定に合わせてダークモードへ切り替わる', async ({
   await expect(page.locator('.plant-card')).toHaveCSS('border-top-color', 'rgb(51, 65, 85)');
   await expect(page.locator('body')).toHaveCSS('color', 'rgb(243, 244, 246)');
   await expect(page.locator('#addBtn')).toHaveCSS('border-top-color', 'rgb(71, 85, 105)');
-  await expect(page.locator('.view-switch')).toHaveCSS('border-top-color', 'rgb(100, 116, 139)');
+  await expect(page.locator('.bottom-nav')).toHaveCSS('border-top-color', 'rgb(55, 65, 81)');
   await expect(page.locator('.list-layout-switch')).toHaveCSS('border-top-color', 'rgb(100, 116, 139)');
 
   await page.locator('#menuBtn').click();
@@ -719,7 +747,8 @@ test('メニューで表示テーマを選択して保存できる', async ({ pa
 test('まとめて水やりを過去日時で複数株へ記録する', async ({ page }) => {
   await seed(page, plants.slice(0, 2).map(plant => ({ ...plant, managementStatus: 'active', logs: [] })));
   await page.goto('/');
-  await page.locator('#topBatchWaterBtn').click();
+  await page.locator('#navRecordBtn').click();
+  await page.locator('#recordMenuWater').click();
   await page.locator('#batchSelectAll').click();
   await page.locator('#batchWaterTime').fill('2026-08-20T09:45');
   await page.locator('#saveBatchWater').click();
@@ -732,7 +761,7 @@ test('まとめて水やりを過去日時で複数株へ記録する', async ({
 test('カレンダーで選択した過去日にケアを追加する', async ({ page }) => {
   await seed(page, [{ ...plants[0], logs: [] }]);
   await page.goto('/');
-  await page.locator('#calendarViewBtn').click();
+  await page.locator('#navCalendarBtn').click();
   await page.evaluate(() => window.selectCalendarDate('2026-08-20'));
   await page.locator('#addCareForDateBtn').click();
   await expect(page.locator('#careRecordedAt')).toHaveValue(/^2026-08-20T/);
@@ -762,7 +791,7 @@ test('当日の降水予報を注意表示付きで水やりとして記録す�
     }));
   });
   await page.goto('/');
-  await page.locator('#calendarViewBtn').click();
+  await page.locator('#navCalendarBtn').click();
   await expect(page.locator('#calendarDayDetails')).toContainText('降水予報 12.4mm（藤沢市）');
   await expect(page.locator('#calendarDayDetails')).toContainText('予報が含まれる可能性');
   await page.getByRole('button', { name: '現在までの雨を水やり扱いにする' }).click();
@@ -797,7 +826,7 @@ test('未来の単発ケア予定を登録してカレンダーに表示する',
   });
 
   await page.locator('#closePlans').click();
-  await page.locator('#calendarViewBtn').click();
+  await page.locator('#navCalendarBtn').click();
   await page.evaluate(() => window.selectCalendarDate('2099-01-15'));
   await expect(page.locator('#calendarDayDetails')).toContainText('グラキリス・施肥予定');
   await expect(page.locator('#calendarDayDetails')).toContainText('ハイポネックス');
@@ -816,7 +845,7 @@ test('隔週の予定を該当日だけカレンダーに表示する', async ({
   };
   await seed(page, [{ ...plants[0], plans: [plan], logs: [] }]);
   await page.goto('/');
-  await page.locator('#calendarViewBtn').click();
+  await page.locator('#navCalendarBtn').click();
   await page.evaluate(() => window.selectCalendarDate('2099-01-15'));
   await expect(page.locator('#calendarDayDetails')).toContainText('グラキリス・水やり予定');
   await expect(page.locator('#calendarDayDetails')).toContainText('隔週');
@@ -838,7 +867,7 @@ test('隔月の予定を該当月だけカレンダーに表示する', async ({
   };
   await seed(page, [{ ...plants[0], plans: [plan], logs: [] }]);
   await page.goto('/');
-  await page.locator('#calendarViewBtn').click();
+  await page.locator('#navCalendarBtn').click();
   await page.evaluate(() => window.selectCalendarDate('2099-03-31'));
   await expect(page.locator('#calendarDayDetails')).toContainText('グラキリス・薬剤散布予定');
   await expect(page.locator('#calendarDayDetails')).toContainText('隔月');
@@ -850,7 +879,7 @@ test('隔月の予定を該当月だけカレンダーに表示する', async ({
 test('未来日のカレンダーから予定登録画面を開ける', async ({ page }) => {
   await seed(page, [{ ...plants[0], plans: [], logs: [] }]);
   await page.goto('/');
-  await page.locator('#calendarViewBtn').click();
+  await page.locator('#navCalendarBtn').click();
   await page.evaluate(() => window.selectCalendarDate('2099-05-10'));
   await expect(page.locator('#addCareForDateBtn')).toHaveText('＋ この日の予定を追加');
   await page.locator('#addCareForDateBtn').click();
@@ -862,7 +891,8 @@ test('未来日のカレンダーから予定登録画面を開ける', async ({
 test('選択した複数株へ同じケア記録をまとめて登録する', async ({ page }) => {
   await seed(page, plants.map(plant => ({ ...plant, plans: [], logs: [] })));
   await page.goto('/');
-  await page.locator('#topBatchCareBtn').click();
+  await page.locator('#navRecordBtn').click();
+  await page.locator('#recordMenuCare').click();
   await expect(page.locator('#batchCareDialog')).toBeVisible();
   await expect(page.locator('.batch-care-plant-check')).toHaveCount(2);
   await page.locator('#batchCareSelectAll').click();
@@ -925,7 +955,7 @@ test('選択した複数株へ同じケア予定をまとめて登録する', as
   });
   expect(saved.plants[0].plans[0].id).not.toBe(saved.plants[1].plans[0].id);
 
-  await page.locator('#calendarViewBtn').click();
+  await page.locator('#navCalendarBtn').click();
   await page.evaluate(() => window.selectCalendarDate('2099-03-01'));
   await expect(page.locator('#calendarDayDetails')).toContainText('グラキリス・施肥予定');
   await expect(page.locator('#calendarDayDetails')).toContainText('恵比寿大黒・施肥予定');
@@ -955,7 +985,7 @@ test('株を選ばず隔週の備忘録を登録してカレンダーに表示�
     recurrence: { unit: 'week', interval: 2 }
   });
 
-  await page.locator('#calendarViewBtn').click();
+  await page.locator('#navCalendarBtn').click();
   await page.evaluate(() => window.selectCalendarDate('2099-01-15'));
   await expect(page.locator('#calendarDayDetails')).toContainText('液肥');
   await expect(page.locator('#calendarDayDetails')).toContainText('隔週');
@@ -1036,7 +1066,7 @@ test('備忘録を編集・削除できる', async ({ page }) => {
 test('未来日のカレンダーから株を選ばず備忘録を追加できる', async ({ page }) => {
   await seed(page);
   await page.goto('/');
-  await page.locator('#calendarViewBtn').click();
+  await page.locator('#navCalendarBtn').click();
   await page.evaluate(() => window.selectCalendarDate('2099-05-10'));
   await page.locator('#addReminderForDateBtn').click();
   await expect(page.locator('#reminderDialog')).toBeVisible();

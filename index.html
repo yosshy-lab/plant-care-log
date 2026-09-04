@@ -38,8 +38,8 @@
 <link rel="apple-touch-icon" sizes="180x180" href="./apple-touch-icon.png">
 <link rel="icon" type="image/png" href="./apple-touch-icon.png">
 <title>塊根植物記録</title>
-<script src="./js/analytics.js?v=1.11.0"></script>
-<link rel="stylesheet" href="./css/styles.css?v=1.11.0">
+<script src="./js/analytics.js?v=1.12.0"></script>
+<link rel="stylesheet" href="./css/styles.css?v=1.12.0">
 </head>
 <body>
 <div class="wrap">
@@ -51,9 +51,11 @@
     <div class="menu-wrap" id="menuWrap">
       <button class="secondary menu-button" id="menuBtn" aria-label="メニュー" aria-haspopup="true" aria-expanded="false">⋯</button>
       <div class="menu-panel" id="dataMenu" role="menu" hidden>
+        <div class="menu-section-title">ヘルプ</div>
         <button id="helpBtn" role="menuitem">使い方・ヘルプ</button>
         <button id="releaseNotesBtn" role="menuitem">更新情報</button>
         <div class="menu-separator" role="separator"></div>
+        <div class="menu-section-title">記録・整理</div>
         <button id="batchWaterBtn" role="menuitem">まとめて水やり</button>
         <button id="batchShortcutBtn" role="menuitem">まとめて水やりURLをコピー</button>
         <button id="batchCareBtn" role="menuitem">まとめてケア記録</button>
@@ -63,9 +65,11 @@
         <button id="reorderPlantsBtn" role="menuitem">株を並べ替える</button>
         <button id="batchEditBtn" role="menuitem">株をまとめて編集</button>
         <div class="menu-separator" role="separator"></div>
+        <div class="menu-section-title">設定</div>
         <button id="themeSettingsBtn" role="menuitem">表示テーマ：自動</button>
         <button id="weatherSettingsBtn" role="menuitem">天気・位置設定</button>
         <div class="menu-separator" role="separator"></div>
+        <div class="menu-section-title">データ管理</div>
         <div id="photoStorageStatus" class="menu-backup-status" role="status">写真ストレージを確認中…</div>
         <div id="backupStatus" class="menu-backup-status" role="status"></div>
         <button id="exportBtn" role="menuitem">バックアップを保存</button>
@@ -87,20 +91,57 @@
     <button id="releaseNoticeDetails" class="secondary" type="button">更新内容を見る</button>
   </aside>
 
-  <div class="toolbar" aria-label="まとめて操作">
-    <button class="top-batch-water" id="topBatchWaterBtn">まとめて水やり</button>
-    <button class="top-batch-care" id="topBatchCareBtn">まとめてケア記録</button>
-    <button class="top-batch-plan" id="topBatchPlanBtn">まとめてケア予定</button>
-    <button class="top-reminders" id="topRemindersBtn">備忘録・予定</button>
-  </div>
   <input id="importFile" type="file" accept="application/json,.json" hidden>
 
-  <div class="view-switch">
-    <button id="listViewBtn" class="active">一覧</button>
-    <button id="calendarViewBtn">カレンダー</button>
+  <div id="todayView" class="app-view">
+    <div class="screen-heading">
+      <div>
+        <span id="todayDateLabel" class="screen-eyebrow"></span>
+        <h2>今日</h2>
+      </div>
+      <button class="secondary compact-action" id="todayRefreshBtn" type="button">更新</button>
+    </div>
+    <div class="today-summary" aria-label="今日の状況">
+      <button class="today-stat" id="todayPlansStat" type="button">
+        <span class="today-stat-icon" aria-hidden="true">✓</span>
+        <span class="today-stat-label">今日の予定</span>
+        <strong id="todayPlanCount">0件</strong>
+      </button>
+      <button class="today-stat overdue" id="overduePlansStat" type="button">
+        <span class="today-stat-icon" aria-hidden="true">!</span>
+        <span class="today-stat-label">期限超過</span>
+        <strong id="overduePlanCount">0件</strong>
+      </button>
+      <button class="today-stat rain" id="yesterdayRainStat" type="button">
+        <span class="today-stat-icon" aria-hidden="true">☂</span>
+        <span class="today-stat-label">昨日の降雨</span>
+        <strong id="yesterdayRainAmount">--</strong>
+      </button>
+    </div>
+    <section class="today-section" aria-labelledby="todayCareHeading">
+      <div class="section-heading-row">
+        <div>
+          <span class="screen-eyebrow">予定からそのまま記録</span>
+          <h2 id="todayCareHeading">今日のケア</h2>
+        </div>
+        <button class="secondary compact-action" id="todayOpenCalendarBtn" type="button">カレンダー</button>
+      </div>
+      <div id="todayTasks" class="today-tasks"></div>
+    </section>
   </div>
 
-  <div id="listView">
+  <div id="listView" class="app-view hidden">
+    <div class="screen-heading list-screen-heading">
+      <div>
+        <span class="screen-eyebrow">登録株を探して記録</span>
+        <h2 id="listScreenTitle">植物一覧</h2>
+      </div>
+      <button class="secondary compact-action" id="toggleSelectModeBtn" type="button">複数選択</button>
+    </div>
+    <div id="selectionNotice" class="selection-notice" hidden>
+      <strong id="selectionCount">0株を選択中</strong>
+      <button class="secondary" id="cancelSelectModeBtn" type="button">キャンセル</button>
+    </div>
     <div class="list-actions-toolbar">
       <button class="secondary list-add-button" id="addBtn">＋植物を追加</button>
       <div class="list-layout-switch" role="group" aria-label="一覧の表示形式">
@@ -128,7 +169,13 @@
     <div id="filterResultCount" class="filter-result-count" aria-live="polite"></div>
     <div id="plants"></div>
   </div>
-  <div id="calendarView" class="hidden">
+  <div id="calendarView" class="app-view hidden">
+    <div class="screen-heading">
+      <div>
+        <span class="screen-eyebrow">記録・予定・天気</span>
+        <h2>カレンダー</h2>
+      </div>
+    </div>
     <div class="calendar-panel">
       <div class="calendar-toolbar">
         <button class="secondary" id="prevMonth" aria-label="前の月">‹</button>
@@ -164,7 +211,37 @@
   </div>
 </div>
 
+<div id="selectionActionBar" class="selection-action-bar" hidden aria-label="選択した植物への操作">
+  <button id="selectionWaterBtn" type="button"><span aria-hidden="true">💧</span>水やり</button>
+  <button id="selectionCareBtn" type="button"><span aria-hidden="true">✎</span>ケア記録</button>
+  <button id="selectionPlanBtn" type="button"><span aria-hidden="true">▣</span>予定</button>
+  <button id="selectionEditBtn" type="button"><span aria-hidden="true">⚙</span>編集</button>
+</div>
+
+<nav class="bottom-nav" aria-label="主要画面">
+  <button id="navTodayBtn" class="active" type="button" aria-current="page"><span aria-hidden="true">▣</span>今日</button>
+  <button id="navListBtn" type="button"><span aria-hidden="true">☷</span>一覧</button>
+  <button id="navRecordBtn" class="nav-record" type="button"><span class="nav-record-icon" aria-hidden="true">＋</span>記録</button>
+  <button id="navCalendarBtn" type="button"><span aria-hidden="true">□</span>カレンダー</button>
+  <button id="navMoreBtn" type="button"><span aria-hidden="true">•••</span>その他</button>
+</nav>
+
 <div id="toast" class="toast"></div>
+
+<dialog id="recordMenuDialog" class="action-sheet-dialog">
+  <div class="modal action-sheet">
+    <div class="action-sheet-handle" aria-hidden="true"></div>
+    <h2>記録・予定を追加</h2>
+    <p class="hint">よく使う操作を選んでください。</p>
+    <div class="record-menu-grid">
+      <button id="recordMenuWater" type="button"><span aria-hidden="true">💧</span><strong>水やり</strong><small>複数株にも記録</small></button>
+      <button id="recordMenuCare" type="button"><span aria-hidden="true">✎</span><strong>ケア記録</strong><small>薬剤・施肥など</small></button>
+      <button id="recordMenuPlan" type="button"><span aria-hidden="true">▣</span><strong>ケア予定</strong><small>繰り返しにも対応</small></button>
+      <button id="recordMenuReminder" type="button"><span aria-hidden="true">📝</span><strong>備忘録</strong><small>株を選ばない予定</small></button>
+    </div>
+    <button class="secondary action-sheet-close" id="closeRecordMenu" type="button">閉じる</button>
+  </div>
+</dialog>
 
 <dialog id="helpDialog">
   <div class="modal">
@@ -172,8 +249,8 @@
     <div class="help-intro">塊根植物ごとの情報と、水やり・薬剤散布・植え替えなどのケアを記録するアプリです。データは基本的に、この端末のブラウザ内へ保存されます。</div>
     <ol class="help-steps" aria-label="基本的な使い方">
       <li><strong>植物を登録</strong><br>「＋ 植物を追加」から管理名や生育区分を入力します。</li>
-      <li><strong>ケアを記録</strong><br>植物カードから各種ケアを選ぶか、「水やり」で素早く記録します。</li>
-      <li><strong>詳細を確認</strong><br>植物カードをタップすると、登録情報・直近のケア・管理メニューを確認できます。</li>
+      <li><strong>今日を確認</strong><br>今日の予定を確認し、「完了して記録」または「1日延期」を選びます。</li>
+      <li><strong>ケアを記録</strong><br>植物カード、または画面下部中央の「記録」から各種ケアを記録します。</li>
     </ol>
 
     <details class="help-section">
@@ -191,10 +268,10 @@
         <p>植物カードの「水やり」は、通常の水やり・液肥なしとしてすぐに記録します。詳しい内容を残す場合は「＋ ケアを記録」を使用してください。</p>
         <p>「＋ ケアを記録」の記録日時を変更すると、昨日など過去のケアを登録できます。未来の日時は「予定」として登録してください。</p>
         <p>過去の記録は植物の詳細画面下部にある「履歴を見る」、またはカレンダーの日付から確認・編集・削除できます。</p>
-        <p>複数株へ同じケアを記録する場合は、画面上部または右上メニューの「まとめてケア記録」で対象株を選択してください。</p>
+        <p>複数株へ同じケアを記録する場合は、一覧右上の「複数選択」から対象株を選び、画面下部の「ケア記録」を使用してください。</p>
         <p>植物の詳細画面下部にある「予定を管理」では、1回だけの予定と、日・週・月単位の繰り返し予定を登録・編集・削除できます。間隔を2にすると隔日・隔週・隔月になります。</p>
-        <p>同じケア予定を複数株へ登録する場合は、画面上部または右上メニューの「まとめてケア予定」で対象株を選択してください。ケア内容、予定日時、メモ、繰り返し周期を1回入力すると、選択した全株へ登録されます。</p>
-        <p>株に紐づかない予定は、画面上部または右上メニューの「備忘録・予定」から登録できます。液肥や遮光変更などの予定名、日時、メモ、繰り返し間隔を設定するとカレンダーへ表示されます。</p>
+        <p>同じケア予定を複数株へ登録する場合は、一覧の「複数選択」から対象株を選び、画面下部の「予定」を使用してください。ケア内容、予定日時、メモ、繰り返し周期を1回入力すると、選択した全株へ登録されます。</p>
+        <p>株に紐づかない予定は、画面下部中央の「記録」または「その他」メニューの「備忘録・予定」から登録できます。液肥や遮光変更などの予定名、日時、メモ、繰り返し間隔を設定するとカレンダーへ表示されます。</p>
         <p>カレンダーで今日以前の日を選ぶと履歴を、未来の日を選ぶと予定を追加できます。登録済みのケアや予定は、日付欄から直接編集・削除できます。</p>
         <p>画面の配色は、初期状態ではiPhoneやMacのライト／ダーク外観設定へ自動的に切り替わります。右上メニューの「表示テーマ」から、ライトまたはダークへ固定することもできます。</p>
       </div>
@@ -213,7 +290,7 @@
     <details class="help-section">
       <summary>まとめて水やり・ショートカット</summary>
       <div class="help-section-body">
-        <p>右上メニューの「まとめて水やり」では、複数の植物を選択して一度に記録できます。記録日時を変更すると、過去の水やりもまとめて登録できます。</p>
+        <p>一覧右上の「複数選択」から対象株を選び、画面下部の「水やり」を押すと一度に記録できます。記録日時を変更すると、過去の水やりもまとめて登録できます。</p>
         <p>個別植物やまとめて水やりのURLをコピーし、iPhoneのショートカットなどから開くこともできます。</p>
       </div>
     </details>
@@ -731,13 +808,14 @@
   </div>
 </dialog>
 
-<script src="./js/storage.js?v=1.11.0"></script>
-<script src="./js/photo-storage.js?v=1.11.0"></script>
-<script src="./js/ui.js?v=1.11.0"></script>
-<script src="./js/reminders.js?v=1.11.0"></script>
-<script src="./js/calendar.js?v=1.11.0"></script>
-<script src="./js/calendar-export.js?v=1.11.0"></script>
-<script src="./js/weather.js?v=1.11.0"></script>
-<script src="./js/app.js?v=1.11.0"></script>
+<script src="./js/storage.js?v=1.12.0"></script>
+<script src="./js/photo-storage.js?v=1.12.0"></script>
+<script src="./js/ui.js?v=1.12.0"></script>
+<script src="./js/reminders.js?v=1.12.0"></script>
+<script src="./js/calendar.js?v=1.12.0"></script>
+<script src="./js/calendar-export.js?v=1.12.0"></script>
+<script src="./js/weather.js?v=1.12.0"></script>
+<script src="./js/today.js?v=1.12.0"></script>
+<script src="./js/app.js?v=1.12.0"></script>
 </body>
 </html>

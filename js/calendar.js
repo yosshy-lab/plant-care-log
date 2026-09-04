@@ -11,6 +11,14 @@ const CARE_CLASSES={
 };
 let calendarMonth=new Date(new Date().getFullYear(),new Date().getMonth(),1);
 let selectedCalendarDate=dateKey(new Date());
+const APP_VIEW_KEY='plant-care-view-v1';
+
+function savedAppView(){
+  try{
+    const view=localStorage.getItem(APP_VIEW_KEY) || 'today';
+    return ['today','list','calendar'].includes(view)?view:'today';
+  }catch(e){ return 'today'; }
+}
 
 function rainfallForDate(date){
   const amount=Number(weather.days?.[date]);
@@ -213,25 +221,45 @@ window.selectCalendarDate=date=>{
   renderCalendar();
 };
 
-function setView(view){
-  const calendar=view==='calendar';
-  $('listView').classList.toggle('hidden',calendar);
-  $('calendarView').classList.toggle('hidden',!calendar);
-  $('listViewBtn').classList.toggle('active',!calendar);
-  $('calendarViewBtn').classList.toggle('active',calendar);
-  if(calendar){
+function setView(view,{persist=true}={}){
+  const selected=['today','list','calendar'].includes(view)?view:'today';
+  $('todayView').classList.toggle('hidden',selected!=='today');
+  $('listView').classList.toggle('hidden',selected!=='list');
+  $('calendarView').classList.toggle('hidden',selected!=='calendar');
+  const navButtons={today:$('navTodayBtn'),list:$('navListBtn'),calendar:$('navCalendarBtn')};
+  Object.entries(navButtons).forEach(([name,button])=>{
+    const active=name===selected;
+    button.classList.toggle('active',active);
+    if(active) button.setAttribute('aria-current','page');
+    else button.removeAttribute('aria-current');
+  });
+  if(selected!=='list' && typeof setListSelectionMode==='function') setListSelectionMode(false,{renderList:false});
+  if(selected==='today' && typeof renderToday==='function') renderToday();
+  if(selected==='calendar'){
     renderCalendarFilters();
     renderCalendar();
   }
+  if(persist){
+    try{ localStorage.setItem(APP_VIEW_KEY,selected); }catch(e){}
+  }
 }
 
-$('listViewBtn').onclick=()=>{
+$('navTodayBtn').onclick=()=>{
+  setView('today');
+  trackPlantCareEvent('today_viewed');
+};
+$('navListBtn').onclick=()=>{
   setView('list');
   trackPlantCareEvent('list_viewed');
 };
-$('calendarViewBtn').onclick=()=>{
+$('navCalendarBtn').onclick=()=>{
   setView('calendar');
   trackPlantCareEvent('calendar_viewed');
+};
+$('navMoreBtn').onclick=event=>{
+  event.stopPropagation();
+  if($('dataMenu').hidden) $('menuBtn').click();
+  else closeDataMenu();
 };
 $('prevMonth').onclick=()=>{
   calendarMonth=new Date(calendarMonth.getFullYear(),calendarMonth.getMonth()-1,1);

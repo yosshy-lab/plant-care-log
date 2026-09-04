@@ -47,6 +47,15 @@ function initializeTheme(){
 
 const RELEASE_NOTES=[
   {
+    version:'1.12.0',date:'2026年9月4日',title:'今日画面と下部ナビゲーションを追加',
+    items:[
+      '今日の予定、期限を過ぎた予定、昨日の降雨をまとめて確認できる「今日」画面を追加しました。',
+      'スマートフォンで主要画面へ移動しやすい下部ナビゲーションと、中央の記録メニューを追加しました。',
+      '植物一覧で複数株を直接選び、水やり、ケア記録、予定、一括編集へ進めるようになりました。',
+      '単発のケア予定は「完了」で履歴へ移し、「1日延期」で翌日へ変更できるようになりました。'
+    ]
+  },
+  {
     version:'1.11.0',date:'2026年9月2日',title:'まとめてケア記録と操作バーを追加',
     items:[
       '複数株へ同じ水やり、薬剤散布、植え替え、施肥、状態記録をまとめて登録できるようになりました。',
@@ -304,10 +313,47 @@ function filteredPlants(){
   });
 }
 
+let listSelectionMode=false;
+const listSelectedPlantIds=new Set();
+
+function selectedListPlantIds(){
+  return [...listSelectedPlantIds].filter(id=>data.plants.some(plant=>
+    String(plant.id)===String(id) && plantManagementStatus(plant)!=='ended'
+  ));
+}
+
+function updateListSelectionUi(){
+  const selected=selectedListPlantIds();
+  const available=filteredPlants().filter(plant=>plantManagementStatus(plant)!=='ended');
+  const allVisibleSelected=available.length && available.every(plant=>listSelectedPlantIds.has(String(plant.id)));
+  $('selectionNotice').hidden=!listSelectionMode;
+  $('selectionCount').textContent=`${selected.length}株を選択中`;
+  $('selectionActionBar').hidden=!listSelectionMode || selected.length===0;
+  $('toggleSelectModeBtn').textContent=listSelectionMode?(allVisibleSelected?'選択解除':'すべて選択'):'複数選択';
+  $('listScreenTitle').textContent=listSelectionMode?'植物を選択':'植物一覧';
+}
+
+function setListSelectionMode(enabled,{renderList=true}={}){
+  listSelectionMode=Boolean(enabled);
+  if(!listSelectionMode) listSelectedPlantIds.clear();
+  if(renderList) render();
+  else updateListSelectionUi();
+}
+
+window.toggleListPlantSelection=id=>{
+  if(!listSelectionMode) return;
+  const key=String(id);
+  if(listSelectedPlantIds.has(key)) listSelectedPlantIds.delete(key);
+  else listSelectedPlantIds.add(key);
+  render();
+};
+
 function render(){
   const root=$('plants');
   applyListLayout();
   renderPlantTagFilter();
+  if(typeof renderToday==='function') renderToday();
+  updateListSelectionUi();
   if(!data.plants.length){
     $('filterResultCount').textContent='';
     root.innerHTML='<div class="card empty">まだ植物がありません。<br>「＋ 植物を追加」から登録してください。</div>';
@@ -327,22 +373,37 @@ function render(){
     const last=p.logs?.[0];
     const e=elapsed(last?.time);
     const status=plantManagementStatus(p);
-    const careActions=status==='ended'
+    const photo=isStoredPhoto(p.photo)
+      ?`<img class="plant-card-photo" src="${p.photo}" alt="${esc(p.name)}の写真">`
+      :'<div class="plant-card-photo plant-card-photo-placeholder" aria-hidden="true">🌿</div>';
+    const selected=listSelectedPlantIds.has(String(p.id));
+    const selectionControl=listSelectionMode && status!=='ended'
+      ?`<label class="plant-select-control" onclick="event.stopPropagation()">
+        <input type="checkbox" ${selected?'checked':''} aria-label="${esc(p.name)}を選択"
+          onchange="toggleListPlantSelection('${esc(String(p.id))}')">
+      </label>`:'';
+    const careActions=listSelectionMode?'' : status==='ended'
       ?'<div class="care-closed-note">管理終了した株です</div>'
       :`<div class="care-actions">
         <button class="care" onclick="event.stopPropagation();openCare('${p.id}')">＋ ケアを記録</button>
         <button class="quick-water" onclick="event.stopPropagation();quickWater('${p.id}')">💧 水やり</button>
       </div>`;
-    return `<div class="card plant-card" role="button" tabindex="0"
-      aria-label="${esc(p.name)}の詳細を表示"
+    return `<div class="card plant-card${listSelectionMode?' selection-mode':''}${selected?' is-selected':''}" role="button" tabindex="0"
+      aria-label="${esc(p.name)}${listSelectionMode?'を選択':'の詳細を表示'}"
       onclick="handlePlantCardClick('${p.id}',event)" onkeydown="handlePlantCardKey('${p.id}',event)">
-      <div class="plant-summary">
-        <div class="name">${esc(p.name)}</div>
-        <div class="meta">${esc(p.stage || '成株')}${p.type?` ・ ${esc(p.type)}`:''}${plantStatusBadge(p)}</div>
-        ${plantTagsHtml(p)}
+      ${selectionControl}
+      <div class="plant-card-content">
+        ${photo}
+        <div class="plant-card-copy">
+          <div class="plant-summary">
+            <div class="name">${esc(p.name)}</div>
+            <div class="meta">${esc(p.stage || '成株')}${p.type?` ・ ${esc(p.type)}`:''}${plantStatusBadge(p)}</div>
+            ${plantTagsHtml(p)}
+          </div>
+          <div class="elapsed">${e.main} <span>${e.sub}</span></div>
+          <div class="meta">前回：${fmtDate(last?.time)}</div>
+        </div>
       </div>
-      <div class="elapsed">${e.main} <span>${e.sub}</span></div>
-      <div class="meta">前回：${fmtDate(last?.time)}</div>
       ${careActions}
     </div>`;
   }).join('');
@@ -381,15 +442,58 @@ $('plantSearch').oninput=render;
 $('plantStatusFilter').onchange=render;
 $('plantStageFilter').onchange=render;
 $('plantTagFilter').onchange=render;
+$('toggleSelectModeBtn').onclick=()=>{
+  if(!listSelectionMode){
+    setListSelectionMode(true);
+    return;
+  }
+  const available=filteredPlants().filter(plant=>plantManagementStatus(plant)!=='ended');
+  const allSelected=available.length && available.every(plant=>listSelectedPlantIds.has(String(plant.id)));
+  available.forEach(plant=>{
+    const id=String(plant.id);
+    if(allSelected) listSelectedPlantIds.delete(id);
+    else listSelectedPlantIds.add(id);
+  });
+  render();
+};
+$('cancelSelectModeBtn').onclick=()=>setListSelectionMode(false);
+$('selectionWaterBtn').onclick=()=>{
+  const ids=selectedListPlantIds();
+  openBatchWatering(null,ids);
+  setListSelectionMode(false);
+};
+$('selectionCareBtn').onclick=()=>{
+  const ids=selectedListPlantIds();
+  openBatchCareRecording(ids);
+  setListSelectionMode(false);
+};
+$('selectionPlanBtn').onclick=()=>{
+  const ids=selectedListPlantIds();
+  openBatchPlanning(ids);
+  setListSelectionMode(false);
+};
+$('selectionEditBtn').onclick=()=>{
+  const ids=selectedListPlantIds();
+  openBatchEdit(ids);
+  setListSelectionMode(false);
+};
 
 function handlePlantCardClick(id,event){
   if(event.target.closest('button,.menu-panel')) return;
+  if(listSelectionMode){
+    toggleListPlantSelection(id);
+    return;
+  }
   openPlantDetails(id);
 }
 
 function handlePlantCardKey(id,event){
   if((event.key==='Enter' || event.key===' ') && !event.target.closest('button')){
     event.preventDefault();
+    if(listSelectionMode){
+      toggleListPlantSelection(id);
+      return;
+    }
     openPlantDetails(id);
   }
 }
@@ -1169,12 +1273,13 @@ function updateBatchEditControls(){
   $('batchEditStatus').hidden=!$('batchEditStatusEnabled').checked;
 }
 
-function openBatchEdit(){
+function openBatchEdit(preselectedIds=[]){
   closeDataMenu();
   if(!data.plants.length) return alert('編集できる植物がありません。');
+  const selected=new Set(preselectedIds.map(String));
   $('batchEditPlantList').innerHTML=data.plants.map(plant=>`
     <label class="batch-plant-row">
-      <input class="batch-edit-plant-check" type="checkbox" value="${esc(String(plant.id))}">
+      <input class="batch-edit-plant-check" type="checkbox" value="${esc(String(plant.id))}" ${selected.has(String(plant.id))?'checked':''}>
       <span>
         <span class="batch-plant-name">${esc(plant.name)}</span>
         <span class="batch-plant-meta">${esc(plant.stage || '成株')}${plant.location?` ・ ${esc(plant.location)}`:''}</span>
@@ -1192,7 +1297,7 @@ function openBatchEdit(){
   $('batchEditDialog').showModal();
 }
 
-$('batchEditBtn').onclick=openBatchEdit;
+$('batchEditBtn').onclick=()=>openBatchEdit();
 $('batchEditPlantList').onchange=updateBatchEditControls;
 ['batchEditTagsEnabled','batchEditLocationEnabled','batchEditStageEnabled','batchEditStatusEnabled']
   .forEach(id=>$(id).onchange=updateBatchEditControls);
@@ -1260,16 +1365,17 @@ function updateBatchCareControls(){
   $('batchCareSelectAll').textContent=checks.length && selected===checks.length?'選択を解除':'すべて選択';
 }
 
-function openBatchCareRecording(){
+function openBatchCareRecording(preselectedIds=[]){
   closeDataMenu();
   const availablePlants=data.plants.filter(plant=>plantManagementStatus(plant)!=='ended');
   if(!availablePlants.length){
     alert('ケアを記録できる植物がありません。管理終了の状態をご確認ください。');
     return;
   }
+  const selected=new Set(preselectedIds.map(String));
   $('batchCarePlantList').innerHTML=availablePlants.map(plant=>`
     <label class="batch-plant-row">
-      <input class="batch-care-plant-check" type="checkbox" value="${esc(String(plant.id))}">
+      <input class="batch-care-plant-check" type="checkbox" value="${esc(String(plant.id))}" ${selected.has(String(plant.id))?'checked':''}>
       <span>
         <span class="batch-plant-name">${esc(plant.name)}</span>
         <span class="batch-plant-meta">${esc(plant.stage || '成株')}${plant.type?` ・ ${esc(plant.type)}`:''}</span>
@@ -1279,8 +1385,7 @@ function openBatchCareRecording(){
   $('batchCareDialog').showModal();
 }
 
-$('batchCareBtn').onclick=openBatchCareRecording;
-$('topBatchCareBtn').onclick=openBatchCareRecording;
+$('batchCareBtn').onclick=()=>openBatchCareRecording();
 $('batchCarePlantList').onchange=updateBatchCareControls;
 $('batchCareSelectAll').onclick=()=>{
   const checks=[...document.querySelectorAll('.batch-care-plant-check')];
@@ -1304,16 +1409,17 @@ function updateBatchPlanControls(){
   $('batchPlanSelectAll').textContent=checks.length && selected===checks.length?'選択を解除':'すべて選択';
 }
 
-function openBatchPlanning(){
+function openBatchPlanning(preselectedIds=[]){
   closeDataMenu();
   const availablePlants=data.plants.filter(plant=>plantManagementStatus(plant)!=='ended');
   if(!availablePlants.length){
     alert('予定を登録できる植物がありません。管理終了の状態をご確認ください。');
     return;
   }
+  const selected=new Set(preselectedIds.map(String));
   $('batchPlanPlantList').innerHTML=availablePlants.map(plant=>`
     <label class="batch-plant-row">
-      <input class="batch-plan-plant-check" type="checkbox" value="${esc(String(plant.id))}">
+      <input class="batch-plan-plant-check" type="checkbox" value="${esc(String(plant.id))}" ${selected.has(String(plant.id))?'checked':''}>
       <span>
         <span class="batch-plant-name">${esc(plant.name)}</span>
         <span class="batch-plant-meta">${esc(plant.stage || '成株')}${plant.type?` ・ ${esc(plant.type)}`:''}</span>
@@ -1323,8 +1429,7 @@ function openBatchPlanning(){
   $('batchPlanDialog').showModal();
 }
 
-$('batchPlanBtn').onclick=openBatchPlanning;
-$('topBatchPlanBtn').onclick=openBatchPlanning;
+$('batchPlanBtn').onclick=()=>openBatchPlanning();
 $('batchPlanPlantList').onchange=updateBatchPlanControls;
 $('batchPlanSelectAll').onclick=()=>{
   const checks=[...document.querySelectorAll('.batch-plan-plant-check')];
@@ -1350,7 +1455,7 @@ function updateBatchWaterControls(){
 
 let batchWaterContext=null;
 
-function openBatchWatering(context=null){
+function openBatchWatering(context=null,preselectedIds=[]){
   closeDataMenu();
   const availablePlants=data.plants.filter(plant=>plantManagementStatus(plant)!=='ended');
   if(!availablePlants.length){
@@ -1372,9 +1477,10 @@ function openBatchWatering(context=null){
   $('batchWaterTimeHint').textContent=batchWaterContext
     ?todayRain?'現在時刻で保存します。予報値ではなく、実際の降雨を確認してから記録してください。':'降雨記録は選択日の正午として保存します。'
     :'実際に水やりした日時を指定できます。';
+  const selected=new Set(preselectedIds.map(String));
   $('batchPlantList').innerHTML=availablePlants.map(p=>`
     <label class="batch-plant-row">
-      <input class="batch-plant-check" type="checkbox" value="${esc(String(p.id))}" ${batchWaterContext && (p.rainExposure || 'rain')==='rain'?'checked':''}>
+      <input class="batch-plant-check" type="checkbox" value="${esc(String(p.id))}" ${selected.has(String(p.id)) || (batchWaterContext && (p.rainExposure || 'rain')==='rain')?'checked':''}>
       <span>
         <span class="batch-plant-name">${esc(p.name)}</span>
         <span class="batch-plant-meta">${esc(p.stage || '成株')}${p.type?` ・ ${esc(p.type)}`:''}</span>
@@ -1570,7 +1676,28 @@ document.addEventListener('keydown',e=>{
   }
 });
 
-$('topBatchWaterBtn').onclick=()=>openBatchWatering();
+$('navRecordBtn').onclick=()=>{
+  $('recordMenuDialog').showModal();
+  trackPlantCareEvent('record_menu_opened');
+};
+$('closeRecordMenu').onclick=()=> $('recordMenuDialog').close();
+$('recordMenuWater').onclick=()=>{
+  $('recordMenuDialog').close();
+  openBatchWatering();
+};
+$('recordMenuCare').onclick=()=>{
+  $('recordMenuDialog').close();
+  openBatchCareRecording();
+};
+$('recordMenuPlan').onclick=()=>{
+  $('recordMenuDialog').close();
+  openBatchPlanning();
+};
+$('recordMenuReminder').onclick=()=>{
+  $('recordMenuDialog').close();
+  openReminders();
+};
+
 $('batchWaterBtn').onclick=()=>openBatchWatering();
 $('batchShortcutBtn').onclick=async()=>{
   closeDataMenu();

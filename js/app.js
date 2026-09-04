@@ -3,6 +3,7 @@
   await initializePhotoStorage();
   autoRecordFromUrl();
   render();
+  setView(savedAppView(),{persist:false});
   renderBackupStatus();
   initializeReleaseNotes();
   updatePhotoStorageStatus();
