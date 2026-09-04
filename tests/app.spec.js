@@ -713,8 +713,10 @@ test('端末設定に合わせてダークモードへ切り替わる', async ({
   await expect(page.locator('.list-layout-switch')).toHaveCSS('border-top-color', 'rgb(100, 116, 139)');
 
   await openMore(page);
-  await expect(page.locator('#helpBtn')).toHaveCSS('border-top-color', 'rgba(0, 0, 0, 0)');
-  await expect(page.locator('#themeSettingsBtn')).toHaveCSS('border-top-color', 'rgba(0, 0, 0, 0)');
+  await expect(page.locator('#helpBtn')).toHaveCSS('border-top-style', 'none');
+  await expect(page.locator('#helpBtn')).toHaveCSS('border-bottom-color', 'rgb(55, 65, 81)');
+  await expect(page.locator('#themeSettingsBtn')).toHaveCSS('border-top-style', 'none');
+  await expect(page.locator('#themeSettingsBtn')).toHaveCSS('border-bottom-color', 'rgb(55, 65, 81)');
   await page.locator('#closeMoreMenu').click();
 
   await page.locator('#addBtn').click();
