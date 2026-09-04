@@ -904,6 +904,7 @@ test('当日の降水予報を注意表示付きで水やりとして記録す�
   });
   await page.goto('/');
   await page.locator('#navCalendarBtn').click();
+  await page.locator('.calendar-day.today').click();
   await expect(page.locator('#calendarDayDetails')).toContainText('降水予報 12.4mm（藤沢市）');
   await expect(page.locator('#calendarDayDetails')).toContainText('予報が含まれる可能性');
   await page.getByRole('button', { name: '現在までの雨を水やり扱いにする' }).click();
