@@ -1,4 +1,4 @@
-const APP_VERSION='1.15.0';
+const APP_VERSION='1.16.0';
 const KEY='plant-care-log-v1';
 const WEATHER_KEY='plant-care-weather-v1';
 const LIST_LAYOUT_KEY='plant-care-list-layout-v1';
@@ -12,6 +12,17 @@ const LEGACY_KEYS=['pachypodium-water-log-v2','pachypodium-water-log-v1'];
 function normalizePlantTags(value){
   if(!Array.isArray(value)) return [];
   return [...new Set(value.map(tag=>String(tag).trim()).filter(Boolean))].slice(0,50);
+}
+
+function normalizeCareTemplates(value){
+  if(!Array.isArray(value)) return [];
+  return value.filter(template=>template && typeof template==='object' && typeof template.name==='string' && template.name.trim() && typeof template.care==='string')
+    .slice(0,20).map(template=>({
+      id:String(template.id || crypto.randomUUID()),name:template.name.trim().slice(0,40),care:template.care,
+      type:typeof template.type==='string'?template.type:'',fertilizer:typeof template.fertilizer==='string'?template.fertilizer:'なし',
+      details:template.details && typeof template.details==='object'?{...template.details}:{},
+      note:typeof template.note==='string'?template.note.slice(0,1000):'',updatedAt:Number(template.updatedAt) || Date.now()
+    }));
 }
 
 function loadBackupMeta(){
@@ -43,7 +54,8 @@ function createBackupPayload(targetData=data){
     appVersion:APP_VERSION,
     exportedAt:Date.now(),
     plants:targetData.plants,
-    reminders:Array.isArray(targetData.reminders)?targetData.reminders:[]
+    reminders:Array.isArray(targetData.reminders)?targetData.reminders:[],
+    careTemplates:normalizeCareTemplates(targetData.careTemplates)
   };
 }
 
@@ -52,6 +64,7 @@ function storageDataPayload(targetData=data){
   if(!useIndexedDb) return targetData;
   return {
     reminders:Array.isArray(targetData.reminders)?targetData.reminders:[],
+    careTemplates:normalizeCareTemplates(targetData.careTemplates),
     plants:(targetData.plants || []).map(plant=>({
       ...plant,
       photo:'',
@@ -63,6 +76,7 @@ function storageDataPayload(targetData=data){
 function validateBackup(input){
   if(!input || typeof input!=='object' || !Array.isArray(input.plants)) throw new Error('invalid backup');
   if('reminders' in input && !Array.isArray(input.reminders)) throw new Error('invalid backup');
+  if('careTemplates' in input && !Array.isArray(input.careTemplates)) throw new Error('invalid backup');
   const validRecurrence=recurrence=>
     recurrence && ['none','day','week','month'].includes(recurrence.unit) &&
     Number.isInteger(Number(recurrence.interval)) && Number(recurrence.interval)>=1;
@@ -103,6 +117,7 @@ function validateBackup(input){
       plans:Array.isArray(plant.plans)?plant.plans:[]
     })),
     reminders:(input.reminders || []).map(reminder=>({...reminder})),
+    careTemplates:normalizeCareTemplates(input.careTemplates),
     exportedAt:Number(input.exportedAt) || null
   };
 }
@@ -129,7 +144,8 @@ function readStoredData(key){
         logs:Array.isArray(plant.logs)?plant.logs:[],
         plans:Array.isArray(plant.plans)?plant.plans:[]
       })),
-      reminders:Array.isArray(parsed.reminders)?parsed.reminders:[]
+      reminders:Array.isArray(parsed.reminders)?parsed.reminders:[],
+      careTemplates:normalizeCareTemplates(parsed.careTemplates)
     };
   }catch(e){
     console.warn(`保存データを読み込めませんでした: ${key}`, e);
@@ -149,7 +165,7 @@ function loadData(){
     }
   }
 
-  return {plants:[],reminders:[]};
+  return {plants:[],reminders:[],careTemplates:[]};
 }
 
 let data=loadData();
@@ -257,7 +273,7 @@ $('importFile').onchange=async()=>{
     }
 
     const previous=data;
-    data={plants:restored.plants,reminders:restored.reminders};
+    data={plants:restored.plants,reminders:restored.reminders,careTemplates:restored.careTemplates};
     if(typeof photoStorageAvailable!=='undefined' && photoStorageAvailable){
       try{
         await persistEmbeddedPhotos(data);

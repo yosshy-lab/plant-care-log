@@ -482,7 +482,13 @@ input[aria-invalid="true"],select[aria-invalid="true"],textarea[aria-invalid="tr
   padding:9px 10px;
   font-size:13px;
 }
-.plan-item .history-actions{grid-template-columns:repeat(3,minmax(0,1fr))}
+.plan-item .history-actions{grid-template-columns:repeat(4,minmax(0,1fr))}
+.plans-batch-actions{position:sticky;top:0;z-index:3;margin:0 0 10px;padding:10px;border:1px solid #b9d2bd;border-radius:13px;background:#f3f8f3;box-shadow:0 6px 20px rgba(15,23,42,.08)}
+.plans-batch-actions strong{display:block;margin-bottom:7px;font-size:12px}
+.plans-batch-actions>div{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+.plans-batch-actions button{padding:9px 7px;font-size:12px}
+.plan-select-row{display:flex;align-items:center;gap:8px;margin:0 0 8px;color:var(--text-soft);font-size:11px;cursor:pointer}
+.plan-select-row input{width:20px;height:20px;margin:0;accent-color:#4f7a55}
 .calendar-add-care{
   width:100%;
   margin:0 0 10px;
@@ -518,6 +524,7 @@ input[aria-invalid="true"],select[aria-invalid="true"],textarea[aria-invalid="tr
 :root[data-theme="dark"] .calendar-add-care{color:#93c5fd}
 :root[data-theme="dark"] .file-picker{background:#152c19}
 :root[data-theme="dark"] .form-actions{background:rgba(17,24,39,.96)}
+:root[data-theme="dark"] .care-efficiency-tools,:root[data-theme="dark"] .plans-batch-actions{border-color:#315238;background:#152c19}
 :root[data-theme="dark"] .menu-version strong{color:#d1d5db}
 :root[data-theme="dark"] .help-steps li::before{background:#60a5fa;color:#0f172a}
 :root[data-theme="dark"] .toast{background:#f8fafc;color:#111827}
@@ -638,6 +645,22 @@ dialog.action-sheet-dialog{width:min(100%,680px);margin:auto auto 0;border-radiu
 .record-menu-grid button>span{grid-row:1/3;font-size:24px}
 .record-menu-grid button strong{font-size:14px}
 .record-menu-grid button small{color:var(--muted);font-size:10px;font-weight:650}
+.recent-care-section{margin:12px 0;padding:11px;border:1px solid var(--line);border-radius:14px;background:var(--surface-muted)}
+.recent-care-heading{margin-bottom:8px;color:var(--muted);font-size:11px;font-weight:800}
+.recent-care-actions{display:flex;gap:7px;overflow-x:auto;scrollbar-width:none}
+.recent-care-actions::-webkit-scrollbar{display:none}
+.recent-care-actions button{display:flex;align-items:center;gap:7px;flex:0 0 auto;max-width:210px;padding:9px 11px;text-align:left}
+.recent-care-actions button>span:first-child{font-size:18px}
+.recent-care-actions button>span:last-child{display:grid;min-width:0}
+.recent-care-actions strong,.recent-care-actions small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.recent-care-actions strong{font-size:12px}.recent-care-actions small{color:var(--muted);font-size:9px}
+.care-efficiency-tools{margin:0 0 12px;padding:11px;border:1px solid #b9d2bd;border-radius:14px;background:#f3f8f3}
+.care-efficiency-tools>button{width:100%;margin-bottom:8px;text-align:left}
+.template-picker-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:7px}
+.template-picker-row select{min-width:0;margin:0}.template-picker-row button{padding:10px 13px}
+.template-actions{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:7px;margin-top:7px}
+.template-actions button{min-width:0;padding:9px 11px;font-size:11px}
+:root[data-theme="dark"] .care-efficiency-tools,:root[data-theme="dark"] .plans-batch-actions{border-color:#315238;background:#152c19}
 .action-sheet-close{width:100%;margin-top:12px}
 
 :root[data-theme="dark"] .today-stat-icon{background:#19351f;color:#a7d5ad}
@@ -708,6 +731,7 @@ dialog.action-sheet-dialog{width:min(100%,680px);margin:auto auto 0;border-radiu
 }
 
 @media(max-width:380px){.form-grid-two{grid-template-columns:1fr}}
+@media(max-width:420px){.plan-item .history-actions{grid-template-columns:repeat(2,minmax(0,1fr))}}
 
 @media(min-width:720px){
   body{padding-bottom:112px}

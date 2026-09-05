@@ -3,15 +3,15 @@ import { expect, test } from '@playwright/test';
 
 const storageKey = 'plant-care-log-v1';
 
-async function seed(page, plants = [], reminders = []) {
-  await page.addInitScript(({ key, plants: seededPlants, reminders: seededReminders }) => {
+async function seed(page, plants = [], reminders = [], careTemplates = []) {
+  await page.addInitScript(({ key, plants: seededPlants, reminders: seededReminders, careTemplates: seededTemplates }) => {
     if (!sessionStorage.getItem('playwright-data-seeded')) {
-      localStorage.setItem(key, JSON.stringify({ plants: seededPlants, reminders: seededReminders }));
+      localStorage.setItem(key, JSON.stringify({ plants: seededPlants, reminders: seededReminders, careTemplates: seededTemplates }));
       localStorage.setItem('plant-care-analytics-enabled-v1', 'false');
       localStorage.setItem('plant-care-view-v1', 'list');
       sessionStorage.setItem('playwright-data-seeded', 'true');
     }
-  }, { key: storageKey, plants, reminders });
+  }, { key: storageKey, plants, reminders, careTemplates });
 }
 
 async function openMore(page) {
@@ -37,7 +37,7 @@ test('主要画面がJavaScriptエラーなく表示される', async ({ page })
   page.on('pageerror', error => errors.push(error.message));
   await page.goto('/');
   await expect(page).toHaveTitle('塊根植物記録');
-  await expect(page.locator('#appVersionDisplay')).toHaveText('v1.15.0');
+  await expect(page.locator('#appVersionDisplay')).toHaveText('v1.16.0');
   await expect(page.locator('#addBtn')).toBeVisible();
   await expect(page.locator('#plantSearch')).toBeVisible();
   await expect(page.locator('#navCalendarBtn')).toBeVisible();
@@ -126,12 +126,12 @@ test('更新案内は新バージョンの初回だけ表示しメニューか�
   await seed(page);
   await page.goto('/');
   await expect(page.locator('#releaseNotice')).toBeVisible();
-  await expect(page.locator('#releaseNotice')).toContainText('v1.15.0 更新');
-  await expect(page.locator('#releaseNotice')).toContainText('成長の変化をグラフと写真で確認');
+  await expect(page.locator('#releaseNotice')).toContainText('v1.16.0 更新');
+  await expect(page.locator('#releaseNotice')).toContainText('いつものケアをすばやく記録');
 
   await page.locator('#releaseNoticeDetails').click();
   await expect(page.locator('#releaseNotesDialog')).toBeVisible();
-  await expect(page.locator('#releaseNotesList')).toContainText('v1.15.0');
+  await expect(page.locator('#releaseNotesList')).toContainText('v1.16.0');
   await expect(page.locator('#releaseNotesList')).not.toContainText('v1.9.0');
   await expect(page.locator('#releaseNotesHint')).toContainText('今回のアップデート内容');
   await page.locator('#closeReleaseNotes').click();
@@ -142,7 +142,7 @@ test('更新案内は新バージョンの初回だけ表示しメニューか�
   await openMore(page);
   await page.locator('#releaseNotesBtn').click();
   await expect(page.locator('#releaseNotesDialog')).toBeVisible();
-  await expect(page.locator('#releaseNotesList')).toContainText('v1.15.0');
+  await expect(page.locator('#releaseNotesList')).toContainText('v1.16.0');
   await expect(page.locator('#releaseNotesList')).toContainText('v1.12.0');
   await expect(page.locator('#releaseNotesList')).toContainText('v1.11.0');
   await expect(page.locator('#releaseNotesList')).toContainText('v1.9.0');
@@ -593,7 +593,17 @@ test('バックアップに件数とバージョン情報を含めて保存す�
     memo: '2000倍',
     recurrence: { unit: 'week', interval: 2 }
   };
-  await seed(page, withLogs, [reminder]);
+  const careTemplate = {
+    id: 'backup-template',
+    name: '定番の液肥',
+    care: '施肥',
+    type: '施肥',
+    fertilizer: 'なし',
+    details: { name: 'ハイポネックス', form: '液肥', amount: '2000倍' },
+    note: '',
+    updatedAt: Date.now()
+  };
+  await seed(page, withLogs, [reminder], [careTemplate]);
   await page.goto('/');
   await openDataManagement(page);
 
@@ -605,10 +615,11 @@ test('バックアップに件数とバージョン情報を含めて保存す�
   expect(payload).toMatchObject({
     format: 'plant-care-log-backup',
     schemaVersion: 1,
-    appVersion: '1.15.0'
+    appVersion: '1.16.0'
   });
   expect(payload.plants).toHaveLength(3);
   expect(payload.reminders).toEqual([reminder]);
+  expect(payload.careTemplates).toEqual([careTemplate]);
   expect(payload.plants[0].photo).toBe('data:image/jpeg;base64,AA==');
 
   await expect(page.locator('#backupStatus')).toContainText('最終保存');
@@ -1251,4 +1262,79 @@ test('未来日のカレンダーから株を選ばず備忘録を追加でき�
   await page.locator('#addReminderForDateBtn').click();
   await expect(page.locator('#reminderDialog')).toBeVisible();
   await expect(page.locator('#reminderStartAt')).toHaveValue(/^2099-05-10T/);
+});
+
+test('前回のケアを再利用しテンプレートと入力候補を保存できる', async ({ page }) => {
+  const pesticideLog = {
+    time: new Date('2026-09-01T08:00').getTime(),
+    care: '薬剤散布',
+    type: '薬剤散布',
+    fertilizer: 'なし',
+    details: { name: 'ベニカX', target: 'ハダニ', dilution: '1000倍', method: '散布' },
+    note: '葉裏まで散布'
+  };
+  await seed(page, [{ ...plants[0], logs: [pesticideLog] }]);
+  await page.goto('/');
+  await page.locator('.care').click();
+  await expect(page.locator('#useLastCare')).toBeVisible();
+  await page.locator('#useLastCare').click();
+  await expect(page.locator('#careType')).toHaveValue('薬剤散布');
+  await expect(page.locator('#pesticideName')).toHaveValue('ベニカX');
+  await expect(page.locator('#pesticideDilution')).toHaveValue('1000倍');
+  await expect(page.locator('#waterNote')).toHaveValue('葉裏まで散布');
+
+  page.once('dialog', dialog => dialog.accept('害虫対策'));
+  await page.locator('#saveCareTemplate').click();
+  const saved = await page.evaluate(key => JSON.parse(localStorage.getItem(key)), storageKey);
+  expect(saved.careTemplates).toHaveLength(1);
+  expect(saved.careTemplates[0]).toMatchObject({
+    name: '害虫対策',
+    care: '薬剤散布',
+    details: { name: 'ベニカX', dilution: '1000倍' }
+  });
+
+  await page.reload();
+  await page.locator('.care').click();
+  await expect(page.locator('#careTemplateSelect option')).toContainText(['テンプレートを選択', '害虫対策（薬剤散布）']);
+  await expect(page.locator('#pesticideNameHistory option[value="ベニカX"]')).toHaveCount(1);
+  await expect(page.locator('#dilutionHistory option[value="1000倍"]')).toHaveCount(1);
+
+  await page.reload();
+  await page.locator('#navRecordBtn').click();
+  await expect(page.locator('#recentCareSection')).toBeVisible();
+  await expect(page.locator('#recentCareActions')).toContainText('薬剤散布・ベニカX');
+});
+
+test('ケア予定を複製し選択した予定を延期・一括完了できる', async ({ page }) => {
+  const firstAt = new Date('2099-03-01T09:00').getTime();
+  const secondAt = new Date('2099-03-02T09:00').getTime();
+  const plansForBatch = [
+    { id: 'plan-1', startAt: firstAt, care: '水やり', type: '通常', fertilizer: 'なし', details: {}, note: '', recurrence: { unit: 'none', interval: 1 } },
+    { id: 'plan-2', startAt: secondAt, care: '施肥', type: '施肥', fertilizer: 'なし', details: { name: '液肥' }, note: '', recurrence: { unit: 'none', interval: 1 } }
+  ];
+  await seed(page, [{ ...plants[0], plans: plansForBatch, logs: [] }]);
+  await page.goto('/');
+  await page.evaluate(() => window.showPlans('a'));
+
+  await page.getByRole('button', { name: '複製' }).first().click();
+  await expect(page.locator('.plan-item')).toHaveCount(3);
+  let saved = await page.evaluate(key => JSON.parse(localStorage.getItem(key)), storageKey);
+  const copy = saved.plants[0].plans.find(plan => !['plan-1', 'plan-2'].includes(String(plan.id)));
+  expect(copy.startAt).toBe(firstAt + 86_400_000);
+
+  await page.locator('.plan-select-check[value="plan-1"]').check();
+  await page.locator('.plan-select-check[value="plan-2"]').check();
+  await expect(page.locator('#selectedPlansCount')).toHaveText('2件を選択中');
+  await page.locator('#postponeSelectedPlans').click();
+  saved = await page.evaluate(key => JSON.parse(localStorage.getItem(key)), storageKey);
+  expect(saved.plants[0].plans.find(plan => plan.id === 'plan-1').startAt).toBe(firstAt + 86_400_000);
+  expect(saved.plants[0].plans.find(plan => plan.id === 'plan-2').startAt).toBe(secondAt + 86_400_000);
+
+  await page.locator('.plan-select-check[value="plan-1"]').check();
+  await page.locator('.plan-select-check[value="plan-2"]').check();
+  await page.locator('#completeSelectedPlans').click();
+  saved = await page.evaluate(key => JSON.parse(localStorage.getItem(key)), storageKey);
+  expect(saved.plants[0].logs).toHaveLength(2);
+  expect(saved.plants[0].plans).toHaveLength(1);
+  expect(saved.plants[0].plans[0].id).toBe(copy.id);
 });

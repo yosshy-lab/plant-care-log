@@ -38,8 +38,8 @@
 <link rel="apple-touch-icon" sizes="180x180" href="./apple-touch-icon.png">
 <link rel="icon" type="image/png" href="./apple-touch-icon.png">
 <title>塊根植物記録</title>
-<script src="./js/analytics.js?v=1.15.0"></script>
-<link rel="stylesheet" href="./css/styles.css?v=1.15.0">
+<script src="./js/analytics.js?v=1.16.0"></script>
+<link rel="stylesheet" href="./css/styles.css?v=1.16.0">
 </head>
 <body>
 <div class="wrap">
@@ -303,6 +303,10 @@
     <div class="action-sheet-handle" aria-hidden="true"></div>
     <h2>記録・予定を追加</h2>
     <p class="hint">よく使う操作を選んでください。</p>
+    <section id="recentCareSection" class="recent-care-section" hidden>
+      <div class="recent-care-heading">最近使ったケア</div>
+      <div id="recentCareActions" class="recent-care-actions"></div>
+    </section>
     <div class="record-menu-grid">
       <button id="recordMenuWater" type="button"><span aria-hidden="true">💧</span><strong>水やり</strong><small>複数株にも記録</small></button>
       <button id="recordMenuCare" type="button"><span aria-hidden="true">✎</span><strong>ケア記録</strong><small>薬剤・施肥など</small></button>
@@ -549,6 +553,17 @@
 <dialog id="careDialog" class="input-dialog">
   <div class="modal input-modal">
     <header class="form-dialog-header"><div><span class="screen-eyebrow" id="careModeLabel">ケア内容を入力</span><h2 id="careTitle">ケア記録</h2></div></header>
+    <section class="care-efficiency-tools" aria-label="入力を省略する">
+      <button class="secondary" id="useLastCare" type="button" hidden>↻ 前回と同じ内容</button>
+      <div class="template-picker-row">
+        <select id="careTemplateSelect" aria-label="ケアテンプレート"><option value="">テンプレートを選択</option></select>
+        <button class="secondary" id="applyCareTemplate" type="button" disabled>適用</button>
+      </div>
+      <div class="template-actions">
+        <button class="secondary" id="saveCareTemplate" type="button">＋ 今の内容をテンプレート保存</button>
+        <button class="danger" id="deleteCareTemplate" type="button" disabled>削除</button>
+      </div>
+    </section>
     <section class="form-section">
     <div class="form-section-heading compact"><span class="form-section-number">1</span><div><h3>種類と日時</h3><p>何を、いつ行ったかを選びます</p></div></div>
     <label for="careType">ケアの種類</label>
@@ -601,12 +616,14 @@
     </div>
     <div id="pesticideFields" class="care-fields" hidden>
       <label for="pesticideName">薬剤名 <span class="required-mark">必須</span></label>
-      <input id="pesticideName" placeholder="例：ベニカXファインスプレー" aria-describedby="pesticideNameError">
+      <input id="pesticideName" list="pesticideNameHistory" placeholder="例：ベニカXファインスプレー" aria-describedby="pesticideNameError">
+      <datalist id="pesticideNameHistory"></datalist>
       <div class="field-error" id="pesticideNameError" aria-live="polite"></div>
       <label>対象</label>
       <input id="pesticideTarget" placeholder="例：ハダニ、カイガラムシ、殺菌">
       <label>希釈倍率（任意）</label>
-      <input id="pesticideDilution" placeholder="例：1000倍、原液">
+      <input id="pesticideDilution" list="dilutionHistory" placeholder="例：1000倍、原液">
+      <datalist id="dilutionHistory"></datalist>
       <label>使用方法</label>
       <select id="pesticideMethod">
         <option>散布</option>
@@ -630,7 +647,8 @@
     </div>
     <div id="fertilizeFields" class="care-fields" hidden>
       <label for="fertilizerName">肥料名 <span class="required-mark">必須</span></label>
-      <input id="fertilizerName" placeholder="例：ハイポネックス、マグァンプK" aria-describedby="fertilizerNameError">
+      <input id="fertilizerName" list="fertilizerNameHistory" placeholder="例：ハイポネックス、マグァンプK" aria-describedby="fertilizerNameError">
+      <datalist id="fertilizerNameHistory"></datalist>
       <div class="field-error" id="fertilizerNameError" aria-live="polite"></div>
       <label>種類</label>
       <select id="fertilizerForm">
@@ -727,6 +745,10 @@
     <div class="plans-header">
       <h2 id="plansTitle">ケア予定</h2>
       <button class="secondary" id="addPlan">＋ 予定を追加</button>
+    </div>
+    <div id="plansBatchActions" class="plans-batch-actions" hidden>
+      <strong id="selectedPlansCount">0件を選択中</strong>
+      <div><button id="completeSelectedPlans" type="button">完了して記録</button><button class="secondary" id="postponeSelectedPlans" type="button">1日延期</button></div>
     </div>
     <div id="plansList"></div>
     <div class="actions"><button id="closePlans">閉じる</button></div>
@@ -939,14 +961,14 @@
   </div>
 </dialog>
 
-<script src="./js/storage.js?v=1.15.0"></script>
-<script src="./js/photo-storage.js?v=1.15.0"></script>
-<script src="./js/ui.js?v=1.15.0"></script>
-<script src="./js/reminders.js?v=1.15.0"></script>
-<script src="./js/calendar.js?v=1.15.0"></script>
-<script src="./js/calendar-export.js?v=1.15.0"></script>
-<script src="./js/weather.js?v=1.15.0"></script>
-<script src="./js/today.js?v=1.15.0"></script>
-<script src="./js/app.js?v=1.15.0"></script>
+<script src="./js/storage.js?v=1.16.0"></script>
+<script src="./js/photo-storage.js?v=1.16.0"></script>
+<script src="./js/ui.js?v=1.16.0"></script>
+<script src="./js/reminders.js?v=1.16.0"></script>
+<script src="./js/calendar.js?v=1.16.0"></script>
+<script src="./js/calendar-export.js?v=1.16.0"></script>
+<script src="./js/weather.js?v=1.16.0"></script>
+<script src="./js/today.js?v=1.16.0"></script>
+<script src="./js/app.js?v=1.16.0"></script>
 </body>
 </html>
