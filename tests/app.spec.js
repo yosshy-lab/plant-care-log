@@ -37,7 +37,7 @@ test('主要画面がJavaScriptエラーなく表示される', async ({ page })
   page.on('pageerror', error => errors.push(error.message));
   await page.goto('/');
   await expect(page).toHaveTitle('塊根植物記録');
-  await expect(page.locator('#appVersionDisplay')).toHaveText('v1.14.0');
+  await expect(page.locator('#appVersionDisplay')).toHaveText('v1.15.0');
   await expect(page.locator('#addBtn')).toBeVisible();
   await expect(page.locator('#plantSearch')).toBeVisible();
   await expect(page.locator('#navCalendarBtn')).toBeVisible();
@@ -126,12 +126,12 @@ test('更新案内は新バージョンの初回だけ表示しメニューか�
   await seed(page);
   await page.goto('/');
   await expect(page.locator('#releaseNotice')).toBeVisible();
-  await expect(page.locator('#releaseNotice')).toContainText('v1.14.0 更新');
-  await expect(page.locator('#releaseNotice')).toContainText('入力画面を迷わず使える形へ刷新');
+  await expect(page.locator('#releaseNotice')).toContainText('v1.15.0 更新');
+  await expect(page.locator('#releaseNotice')).toContainText('成長の変化をグラフと写真で確認');
 
   await page.locator('#releaseNoticeDetails').click();
   await expect(page.locator('#releaseNotesDialog')).toBeVisible();
-  await expect(page.locator('#releaseNotesList')).toContainText('v1.14.0');
+  await expect(page.locator('#releaseNotesList')).toContainText('v1.15.0');
   await expect(page.locator('#releaseNotesList')).not.toContainText('v1.9.0');
   await expect(page.locator('#releaseNotesHint')).toContainText('今回のアップデート内容');
   await page.locator('#closeReleaseNotes').click();
@@ -142,7 +142,7 @@ test('更新案内は新バージョンの初回だけ表示しメニューか�
   await openMore(page);
   await page.locator('#releaseNotesBtn').click();
   await expect(page.locator('#releaseNotesDialog')).toBeVisible();
-  await expect(page.locator('#releaseNotesList')).toContainText('v1.14.0');
+  await expect(page.locator('#releaseNotesList')).toContainText('v1.15.0');
   await expect(page.locator('#releaseNotesList')).toContainText('v1.12.0');
   await expect(page.locator('#releaseNotesList')).toContainText('v1.11.0');
   await expect(page.locator('#releaseNotesList')).toContainText('v1.9.0');
@@ -273,6 +273,45 @@ test('植物詳細で管理指標・成長タイムライン・写真比較を�
   const saved=await page.evaluate(key=>JSON.parse(localStorage.getItem(key)),storageKey);
   expect(saved.plants[0].logs).toHaveLength(4);
   expect(saved.plants[0].logs[0].care).toBe('水やり');
+});
+
+test('旧形式を含む測定値をグラフ化し成長写真を連続表示・書き出しできる', async ({ page }) => {
+  const day=24*60*60*1000;
+  const now=Date.now();
+  const photo='data:image/jpeg;base64,AA==';
+  await seed(page,[{
+    ...plants[0],
+    logs:[
+      {time:now-20*day,care:'状態・写真記録',details:{height:'10cm',trunkWidth:'3.2cm',leafCount:'8枚'},photo},
+      {time:now-10*day,care:'状態・写真記録',details:{height:'12cm',trunkWidth:'4cm',leafCount:'12枚',measurements:{height:12,trunkWidth:4,leafCount:12}},photo},
+      {time:now-day,care:'水やり',type:'通常',fertilizer:'なし',details:{}}
+    ]
+  }]);
+  await page.goto('/');
+  await page.locator('.plant-card').click();
+
+  await expect(page.locator('.growth-chart-card')).toHaveCount(3);
+  await expect(page.locator('.growth-chart-section')).toContainText('12cm');
+  await expect(page.locator('.growth-chart-section')).toContainText('+2cm');
+  await page.getByRole('button',{name:'測定',exact:true}).click();
+  await expect(page.locator('#plantTimelineList .detail-timeline-item')).toHaveCount(2);
+  await page.getByRole('button',{name:'ケア',exact:true}).click();
+  await expect(page.locator('#plantTimelineList .detail-timeline-item')).toHaveCount(1);
+
+  await page.locator('#growthPhotoSequencePlantDetails').click();
+  await expect(page.locator('#growthPhotoSequenceDialog')).toBeVisible();
+  await expect(page.locator('#growthPhotoSequenceCount')).toHaveText('1 / 2');
+  await page.locator('#nextGrowthPhoto').click();
+  await expect(page.locator('#growthPhotoSequenceElapsed')).toContainText('10日');
+  await page.locator('#closeGrowthPhotoSequence').click();
+
+  const downloadPromise=page.waitForEvent('download');
+  await page.locator('#exportGrowthPhotosPlantDetails').click();
+  const download=await downloadPromise;
+  expect(download.suggestedFilename()).toMatch(/^plant-growth-\d{4}-\d{2}-\d{2}\.html$/);
+  const html=await readFile(await download.path(),'utf8');
+  expect(html).toContain('グラキリスの成長写真');
+  expect(html).toContain('最初の写真から10日');
 });
 
 test('LocalStorage内の既存写真を初回起動時にIndexedDBへ自動移行する', async ({ page }) => {
@@ -566,7 +605,7 @@ test('バックアップに件数とバージョン情報を含めて保存す�
   expect(payload).toMatchObject({
     format: 'plant-care-log-backup',
     schemaVersion: 1,
-    appVersion: '1.14.0'
+    appVersion: '1.15.0'
   });
   expect(payload.plants).toHaveLength(3);
   expect(payload.reminders).toEqual([reminder]);
