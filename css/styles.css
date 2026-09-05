@@ -545,16 +545,17 @@ body{padding-bottom:calc(104px + env(safe-area-inset-bottom))}
 
 .today-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-bottom:14px}
 .today-stat{
-  display:flex;flex-direction:column;align-items:flex-start;min-width:0;min-height:112px;padding:12px;
+  display:grid;grid-template-columns:30px minmax(0,1fr) auto;grid-template-areas:"icon label value" "icon meta meta";align-items:center;column-gap:10px;row-gap:2px;min-width:0;min-height:76px;padding:10px 12px;
   color:var(--text);background:var(--surface);border:1px solid var(--card-border);box-shadow:var(--card-shadow);text-align:left
 }
-.today-stat-icon{display:grid;place-items:center;width:30px;height:30px;margin-bottom:10px;border-radius:10px;background:#e8f1e8;color:#3f6b45;font-size:15px;font-weight:900}
+.today-stat-icon{grid-area:icon;display:grid;place-items:center;width:30px;height:30px;border-radius:10px;background:#e8f1e8;color:#3f6b45;font-size:15px;font-weight:900}
 .today-stat.overdue .today-stat-icon{background:#fff3e8;color:#b45309}
 .today-stat.upcoming .today-stat-icon{background:var(--blue-bg);color:var(--blue-text)}
 .today-stat.weather .today-stat-icon{background:var(--cyan-bg);color:#0e7490}
-.today-stat-label{min-height:28px;color:var(--muted);font-size:11px;line-height:1.25}
-.today-stat strong{font-size:22px;line-height:1.1;overflow-wrap:anywhere}
-.today-stat small{display:block;margin-top:5px;color:var(--muted);font-size:10px;line-height:1.25}
+.today-stat-label{grid-area:label;min-width:0;color:var(--muted);font-size:12px;line-height:1.25}
+.today-stat strong{grid-area:value;justify-self:end;font-size:20px;line-height:1.1;white-space:nowrap}
+.today-stat.weather strong{font-size:18px}
+.today-stat small{grid-area:meta;display:block;min-width:0;color:var(--muted);font-size:11px;line-height:1.25;overflow-wrap:anywhere}
 .today-section{margin-top:4px}
 .today-filter-bar{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto;gap:8px;margin:10px 0 12px}
 .today-filter-bar select,.today-filter-bar button{min-width:0;margin:0}
@@ -738,8 +739,9 @@ dialog.action-sheet-dialog{width:min(100%,680px);margin:auto auto 0;border-radiu
   h1{font-size:20px}
   .screen-heading{margin-top:14px}
   .screen-heading h2,.section-heading-row h2{font-size:22px}
-  .today-stat{min-height:104px;padding:10px}
-  .today-stat strong{font-size:19px}
+  .today-stat{min-height:72px;padding:9px 10px}
+  .today-stat strong{font-size:18px}
+  .today-stat.weather strong{font-size:17px}
   .today-summary{grid-template-columns:repeat(2,minmax(0,1fr))}
   .today-filter-bar{grid-template-columns:1fr 1fr}
   .today-filter-bar button{grid-column:1/-1}

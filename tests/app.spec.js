@@ -134,6 +134,14 @@ test('今日画面に最高最低気温と降水量を表示する', async ({ pa
   await page.locator('#navTodayBtn').click();
   await expect(page.locator('#todayWeatherSummary')).toHaveText('29° / 22°');
   await expect(page.locator('#todayWeatherRain')).toHaveText('降水 4.2mm・藤沢市');
+  const [card,label,value]=await Promise.all([
+    page.locator('#overduePlansStat').boundingBox(),
+    page.locator('#overduePlansStat .today-stat-label').boundingBox(),
+    page.locator('#overduePlanCount').boundingBox()
+  ]);
+  expect(card && label && value).toBeTruthy();
+  expect(card.height).toBeLessThanOrEqual(90);
+  expect(value.x).toBeGreaterThan(label.x);
 });
 
 test('SNS共有用のOGP画像とメタ情報を配信する', async ({ page }) => {
