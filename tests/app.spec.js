@@ -627,7 +627,17 @@ test('バックアップに件数とバージョン情報を含めて保存す�
 });
 
 test('復元前に自動退避し、復元を取り消せる', async ({ page }) => {
-  await seed(page, [plants[0]]);
+  const originalTemplate = {
+    id: 'restore-template',
+    name: '元の液肥',
+    care: '施肥',
+    type: '施肥',
+    fertilizer: 'なし',
+    details: { name: 'ハイポネックス', amount: '2000倍' },
+    note: '',
+    updatedAt: Date.now()
+  };
+  await seed(page, [plants[0]], [], [originalTemplate]);
   await page.goto('/');
   const incoming = {
     format: 'plant-care-log-backup',
@@ -653,6 +663,8 @@ test('復元前に自動退避し、復元を取り消せる', async ({ page }) 
   page.once('dialog', dialog => dialog.accept());
   await page.locator('#restorePreImportBtn').click();
   await expect(page.locator('.plant-card')).toContainText('グラキリス');
+  const restored = await page.evaluate(key => JSON.parse(localStorage.getItem(key)), storageKey);
+  expect(restored.careTemplates).toEqual([originalTemplate]);
 });
 
 

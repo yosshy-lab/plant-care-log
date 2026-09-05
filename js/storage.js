@@ -309,7 +309,7 @@ $('restorePreImportBtn').onclick=async()=>{
     if(!confirm(`復元前の${summary.plants}株・履歴${summary.logs}件へ戻しますか？\n現在のデータも復元ポイントとして入れ替えて保存します。`)) return;
     const current=createBackupPayload();
     const previous=data;
-    data={plants:restorePoint.plants,reminders:restorePoint.reminders};
+    data={plants:restorePoint.plants,reminders:restorePoint.reminders,careTemplates:restorePoint.careTemplates};
     if(typeof photoStorageAvailable!=='undefined' && photoStorageAvailable){
       try{
         await persistEmbeddedPhotos(data);
