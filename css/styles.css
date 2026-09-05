@@ -543,26 +543,47 @@ body{padding-bottom:calc(104px + env(safe-area-inset-bottom))}
 .screen-eyebrow{display:block;color:var(--muted);font-size:11px;font-weight:750;letter-spacing:.02em}
 .compact-action{width:auto;padding:8px 11px;font-size:12px;white-space:nowrap}
 
-.today-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-bottom:18px}
+.today-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-bottom:14px}
 .today-stat{
   display:flex;flex-direction:column;align-items:flex-start;min-width:0;min-height:112px;padding:12px;
   color:var(--text);background:var(--surface);border:1px solid var(--card-border);box-shadow:var(--card-shadow);text-align:left
 }
 .today-stat-icon{display:grid;place-items:center;width:30px;height:30px;margin-bottom:10px;border-radius:10px;background:#e8f1e8;color:#3f6b45;font-size:15px;font-weight:900}
 .today-stat.overdue .today-stat-icon{background:#fff3e8;color:#b45309}
-.today-stat.rain .today-stat-icon{background:var(--cyan-bg);color:#0e7490}
+.today-stat.upcoming .today-stat-icon{background:var(--blue-bg);color:var(--blue-text)}
+.today-stat.weather .today-stat-icon{background:var(--cyan-bg);color:#0e7490}
 .today-stat-label{min-height:28px;color:var(--muted);font-size:11px;line-height:1.25}
 .today-stat strong{font-size:22px;line-height:1.1;overflow-wrap:anywhere}
+.today-stat small{display:block;margin-top:5px;color:var(--muted);font-size:10px;line-height:1.25}
 .today-section{margin-top:4px}
+.today-filter-bar{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto;gap:8px;margin:10px 0 12px}
+.today-filter-bar select,.today-filter-bar button{min-width:0;margin:0}
+.today-filter-bar button.active{background:#466b4b;color:#fff}
+.today-recent-care{margin:0 0 10px;padding:11px;border:1px solid var(--line);border-radius:14px;background:var(--surface-subtle)}
+.today-recent-care>strong{display:block;margin-bottom:7px;font-size:12px}
+.today-recent-care>div{display:flex;gap:7px;overflow-x:auto;scrollbar-width:none}
+.today-recent-care>div::-webkit-scrollbar{display:none}
+.today-recent-care button{flex:0 0 auto;min-height:38px;padding:8px 11px;font-size:12px}
+.today-recent-care button span{margin-right:5px}
+.today-task-sections{display:grid;gap:18px}
+.today-task-group[hidden]{display:none}
+.today-group-heading{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;padding:0 2px}
+.today-group-heading h3{margin:0;font-size:16px}
+.today-group-heading span{padding:4px 8px;border-radius:999px;background:var(--surface-subtle);color:var(--muted);font-size:11px;font-weight:800}
 .today-tasks{display:grid;gap:10px}
 .today-task{padding:14px;border:1px solid var(--card-border);border-radius:16px;background:var(--card);box-shadow:var(--card-shadow)}
 .today-task.overdue{border-color:var(--amber-border)}
+.today-task.selected{border-color:#648c69;box-shadow:0 0 0 2px rgba(79,122,85,.16)}
+.today-task-select{display:flex;align-items:center;gap:7px;margin:-2px 0 10px;color:var(--muted);font-size:12px;font-weight:750}
+.today-task-select.hidden{display:none}
+.today-task-select input{width:auto;margin:0}
 .today-task-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
 .today-task-name{font-size:16px;font-weight:850;line-height:1.35}
 .today-task-care{margin-top:4px;color:var(--muted);font-size:12px}
 .today-task-time{flex:none;padding:4px 7px;border-radius:999px;background:var(--blue-bg);color:var(--blue-text);font-size:10px;font-weight:800}
 .today-task.overdue .today-task-time{background:var(--amber-bg);color:var(--amber-text)}
 .today-task-actions{display:grid;grid-template-columns:1.2fr 1fr;gap:8px;margin-top:12px}
+.today-task-actions.single{grid-template-columns:1fr}
 .today-task-actions button{min-height:44px;padding:9px 10px;font-size:13px}
 .today-task-complete{background:#4f7a55}
 .today-task-note{margin-top:8px;color:var(--muted);font-size:12px;white-space:pre-wrap}
@@ -570,6 +591,14 @@ body{padding-bottom:calc(104px + env(safe-area-inset-bottom))}
 .today-reminder .today-task-actions{grid-template-columns:1fr}
 .today-empty{padding:24px 16px;border:1px dashed var(--line);border-radius:16px;color:var(--muted);text-align:center;background:var(--surface)}
 .today-empty strong{display:block;margin-bottom:5px;color:var(--text);font-size:15px}
+.today-empty span{display:block;line-height:1.55}
+.today-empty button{width:auto;margin-top:12px}
+.today-undo-notice,.today-batch-actions{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:10px 0;padding:10px 12px;border-radius:13px;background:#e8f1e8;color:#315238}
+.today-undo-notice[hidden],.today-batch-actions[hidden]{display:none}
+.today-undo-notice span,.today-batch-actions strong{font-size:13px}
+.today-undo-notice button{flex:none;padding:7px 10px}
+.today-batch-actions>div{display:flex;gap:7px}
+.today-batch-actions button{width:auto;padding:8px 10px;font-size:12px}
 
 .list-screen-heading{margin-bottom:10px}
 .selection-notice{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 0 10px;padding:10px 12px;border-radius:13px;background:#e8f1e8;color:#315238}
@@ -665,6 +694,7 @@ dialog.action-sheet-dialog{width:min(100%,680px);margin:auto auto 0;border-radiu
 
 :root[data-theme="dark"] .today-stat-icon{background:#19351f;color:#a7d5ad}
 :root[data-theme="dark"] .today-stat.overdue .today-stat-icon{background:#422006;color:#fcd34d}
+:root[data-theme="dark"] .today-undo-notice,:root[data-theme="dark"] .today-batch-actions{background:#19351f;color:#d7ead9}
 :root[data-theme="dark"] .selection-notice{background:#19351f;color:#c1e3c5}
 :root[data-theme="dark"] .plant-card.is-selected{background:#152c19;border-color:#648c69}
 :root[data-theme="dark"] .detail-timeline-marker{border-color:var(--card);background:#19351f}
@@ -710,6 +740,12 @@ dialog.action-sheet-dialog{width:min(100%,680px);margin:auto auto 0;border-radiu
   .screen-heading h2,.section-heading-row h2{font-size:22px}
   .today-stat{min-height:104px;padding:10px}
   .today-stat strong{font-size:19px}
+  .today-summary{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .today-filter-bar{grid-template-columns:1fr 1fr}
+  .today-filter-bar button{grid-column:1/-1}
+  .today-undo-notice,.today-batch-actions{align-items:stretch;flex-direction:column}
+  .today-batch-actions>div{display:grid;grid-template-columns:1fr 1fr}
+  .today-batch-actions button{width:100%}
   .list-actions-toolbar{margin-top:0}
   .detail-hero-photo{height:245px}
   .detail-vitals>div{padding:10px 7px}

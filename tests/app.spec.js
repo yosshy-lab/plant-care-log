@@ -37,7 +37,7 @@ test('主要画面がJavaScriptエラーなく表示される', async ({ page })
   page.on('pageerror', error => errors.push(error.message));
   await page.goto('/');
   await expect(page).toHaveTitle('塊根植物記録');
-  await expect(page.locator('#appVersionDisplay')).toHaveText('v1.16.0');
+  await expect(page.locator('#appVersionDisplay')).toHaveText('v1.17.0');
   await expect(page.locator('#addBtn')).toBeVisible();
   await expect(page.locator('#plantSearch')).toBeVisible();
   await expect(page.locator('#navCalendarBtn')).toBeVisible();
@@ -68,6 +68,72 @@ test('今日画面で期限超過の予定を完了して履歴へ移せる', as
   expect(saved.plants[0].logs).toHaveLength(1);
   expect(saved.plants[0].logs[0].care).toBe('水やり');
   await expect(page.locator('#todayPlanCount')).toHaveText('0件');
+});
+
+test('今日画面で予定を区分・絞り込みし一括完了を取り消せる', async ({ page }) => {
+  const now=Date.now();
+  const day=24*60*60*1000;
+  const todayFuture=new Date(now).setHours(23,59,0,0);
+  const todayStart=new Date(now).setHours(0,0,0,0);
+  const upcomingAt=todayStart+3*day+9*60*60*1000;
+  await seed(page,[
+    {...plants[0],logs:[],plans:[
+      {id:'overdue-batch',startAt:now-60_000,care:'水やり',type:'通常',fertilizer:'なし',details:{},note:'朝の水やり',recurrence:{unit:'none',interval:1}},
+      {id:'upcoming-batch',startAt:upcomingAt,care:'水やり',type:'通常',fertilizer:'なし',details:{},note:'近日予定',recurrence:{unit:'none',interval:1}}
+    ]},
+    {...plants[1],managementStatus:'active',logs:[],plans:[
+      {id:'today-batch',startAt:todayFuture,care:'施肥',type:'施肥',fertilizer:'なし',details:{name:'液肥'},note:'夕方',recurrence:{unit:'none',interval:1}}
+    ]}
+  ]);
+  await page.goto('/');
+  await page.locator('#navTodayBtn').click();
+
+  await expect(page.locator('#overduePlanCount')).toHaveText('1件');
+  await expect(page.locator('#todayPlanCount')).toHaveText('2件');
+  await expect(page.locator('#upcomingPlanCount')).toHaveText('1件');
+  await expect(page.locator('#todayOverdueSection')).toBeVisible();
+  await expect(page.locator('#todayCurrentSection')).toBeVisible();
+  await expect(page.locator('#todayUpcomingSection')).toBeVisible();
+
+  await page.locator('#todayCareFilter').selectOption({label:'施肥'});
+  await expect(page.locator('#todayCurrentTasks .today-task')).toHaveCount(1);
+  await expect(page.locator('#todayOverdueSection')).toBeHidden();
+  await page.locator('#todayCareFilter').selectOption('all');
+
+  await page.locator('#todaySelectModeBtn').click();
+  await expect(page.locator('.today-plan-check')).toHaveCount(2);
+  await page.locator('.today-plan-check').first().check();
+  await page.locator('.today-plan-check').last().check();
+  await expect(page.locator('#todaySelectedCount')).toHaveText('2件を選択中');
+  await page.locator('#completeSelectedTodayPlans').click();
+  let saved=await page.evaluate(key=>JSON.parse(localStorage.getItem(key)),storageKey);
+  expect(saved.plants[0].logs).toHaveLength(1);
+  expect(saved.plants[1].logs).toHaveLength(1);
+  await expect(page.locator('#todayUndoNotice')).toBeVisible();
+
+  await page.locator('#undoTodayAction').click();
+  saved=await page.evaluate(key=>JSON.parse(localStorage.getItem(key)),storageKey);
+  expect(saved.plants[0].logs).toHaveLength(0);
+  expect(saved.plants[1].logs).toHaveLength(0);
+  expect(saved.plants[0].plans).toHaveLength(2);
+  expect(saved.plants[1].plans).toHaveLength(1);
+});
+
+test('今日画面に最高最低気温と降水量を表示する', async ({ page }) => {
+  await seed(page);
+  await page.addInitScript(() => {
+    const date=new Date();
+    const pad=value=>String(value).padStart(2,'0');
+    const key=`${date.getFullYear()}-${pad(date.getMonth()+1)}-${pad(date.getDate())}`;
+    localStorage.setItem('plant-care-weather-v1',JSON.stringify({
+      latitude:35.34,longitude:139.49,cityName:'藤沢市',displayThreshold:1,equivalentThreshold:10,
+      days:{[key]:4.2},maxTemps:{[key]:29.4},minTemps:{[key]:22.1},lastUpdated:Date.now()
+    }));
+  });
+  await page.goto('/');
+  await page.locator('#navTodayBtn').click();
+  await expect(page.locator('#todayWeatherSummary')).toHaveText('29° / 22°');
+  await expect(page.locator('#todayWeatherRain')).toHaveText('降水 4.2mm・藤沢市');
 });
 
 test('SNS共有用のOGP画像とメタ情報を配信する', async ({ page }) => {
@@ -126,8 +192,8 @@ test('更新案内は新バージョンの初回だけ表示しメニューか�
   await seed(page);
   await page.goto('/');
   await expect(page.locator('#releaseNotice')).toBeVisible();
-  await expect(page.locator('#releaseNotice')).toContainText('v1.16.0 更新');
-  await expect(page.locator('#releaseNotice')).toContainText('いつものケアをすばやく記録');
+  await expect(page.locator('#releaseNotice')).toContainText('v1.17.0 更新');
+  await expect(page.locator('#releaseNotice')).toContainText('今日やることを迷わず確認');
 
   await page.locator('#releaseNoticeDetails').click();
   await expect(page.locator('#releaseNotesDialog')).toBeVisible();
@@ -615,7 +681,7 @@ test('バックアップに件数とバージョン情報を含めて保存す�
   expect(payload).toMatchObject({
     format: 'plant-care-log-backup',
     schemaVersion: 1,
-    appVersion: '1.16.0'
+    appVersion: '1.17.0'
   });
   expect(payload.plants).toHaveLength(3);
   expect(payload.reminders).toEqual([reminder]);
@@ -1315,6 +1381,11 @@ test('前回のケアを再利用しテンプレートと入力候補を保存�
   await page.locator('#navRecordBtn').click();
   await expect(page.locator('#recentCareSection')).toBeVisible();
   await expect(page.locator('#recentCareActions')).toContainText('薬剤散布・ベニカX');
+  await page.locator('#closeRecordMenu').click();
+  await page.locator('#navTodayBtn').click();
+  await expect(page.locator('#todayRecentCare')).toBeVisible();
+  await page.locator('#todayRecentCareActions button').first().click();
+  await expect(page.locator('#batchCareDialog')).toBeVisible();
 });
 
 test('ケア予定を複製し選択した予定を延期・一括完了できる', async ({ page }) => {

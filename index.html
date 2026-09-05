@@ -38,8 +38,8 @@
 <link rel="apple-touch-icon" sizes="180x180" href="./apple-touch-icon.png">
 <link rel="icon" type="image/png" href="./apple-touch-icon.png">
 <title>塊根植物記録</title>
-<script src="./js/analytics.js?v=1.16.0"></script>
-<link rel="stylesheet" href="./css/styles.css?v=1.16.0">
+<script src="./js/analytics.js?v=1.17.0"></script>
+<link rel="stylesheet" href="./css/styles.css?v=1.17.0">
 </head>
 <body>
 <div class="wrap">
@@ -72,20 +72,26 @@
       <button class="secondary compact-action" id="todayRefreshBtn" type="button">更新</button>
     </div>
     <div class="today-summary" aria-label="今日の状況">
-      <button class="today-stat" id="todayPlansStat" type="button">
-        <span class="today-stat-icon" aria-hidden="true">✓</span>
-        <span class="today-stat-label">今日の予定</span>
-        <strong id="todayPlanCount">0件</strong>
-      </button>
       <button class="today-stat overdue" id="overduePlansStat" type="button">
         <span class="today-stat-icon" aria-hidden="true">!</span>
         <span class="today-stat-label">期限超過</span>
         <strong id="overduePlanCount">0件</strong>
       </button>
-      <button class="today-stat rain" id="yesterdayRainStat" type="button">
+      <button class="today-stat" id="todayPlansStat" type="button">
+        <span class="today-stat-icon" aria-hidden="true">✓</span>
+        <span class="today-stat-label">今日の予定</span>
+        <strong id="todayPlanCount">0件</strong>
+      </button>
+      <button class="today-stat upcoming" id="upcomingPlansStat" type="button">
+        <span class="today-stat-icon" aria-hidden="true">→</span>
+        <span class="today-stat-label">7日以内</span>
+        <strong id="upcomingPlanCount">0件</strong>
+      </button>
+      <button class="today-stat weather" id="todayWeatherStat" type="button">
         <span class="today-stat-icon" aria-hidden="true">☂</span>
-        <span class="today-stat-label">昨日の降雨</span>
-        <strong id="yesterdayRainAmount">--</strong>
+        <span class="today-stat-label">今日の天気</span>
+        <strong id="todayWeatherSummary">--</strong>
+        <small id="todayWeatherRain">現在地未設定</small>
       </button>
     </div>
     <section class="today-section" aria-labelledby="todayCareHeading">
@@ -96,7 +102,41 @@
         </div>
         <button class="secondary compact-action" id="todayOpenCalendarBtn" type="button">カレンダー</button>
       </div>
-      <div id="todayTasks" class="today-tasks"></div>
+      <div id="todayRecentCare" class="today-recent-care" hidden>
+        <strong>最近のケア</strong>
+        <div id="todayRecentCareActions"></div>
+      </div>
+      <div class="today-filter-bar">
+        <select id="todayPlantFilter" aria-label="植物で絞り込み"><option value="all">すべての植物</option></select>
+        <select id="todayCareFilter" aria-label="ケアで絞り込み"><option value="all">すべてのケア</option></select>
+        <button class="secondary" id="todaySelectModeBtn" type="button" aria-pressed="false">複数選択</button>
+      </div>
+      <div id="todayUndoNotice" class="today-undo-notice" hidden>
+        <span id="todayUndoMessage"></span><button class="secondary" id="undoTodayAction" type="button">取り消す</button>
+      </div>
+      <div id="todayBatchActions" class="today-batch-actions" hidden>
+        <strong id="todaySelectedCount">0件を選択中</strong>
+        <div><button id="completeSelectedTodayPlans" type="button">完了して記録</button><button class="secondary" id="postponeSelectedTodayPlans" type="button">1日延期</button></div>
+      </div>
+      <div id="todayTaskSections" class="today-task-sections">
+        <section id="todayOverdueSection" class="today-task-group" aria-labelledby="todayOverdueHeading">
+          <div class="today-group-heading"><h3 id="todayOverdueHeading">期限超過</h3><span id="todayOverdueCount">0件</span></div>
+          <div id="todayOverdueTasks" class="today-tasks"></div>
+        </section>
+        <section id="todayCurrentSection" class="today-task-group" aria-labelledby="todayCurrentHeading">
+          <div class="today-group-heading"><h3 id="todayCurrentHeading">今日</h3><span id="todayCurrentCount">0件</span></div>
+          <div id="todayCurrentTasks" class="today-tasks"></div>
+        </section>
+        <section id="todayUpcomingSection" class="today-task-group" aria-labelledby="todayUpcomingHeading">
+          <div class="today-group-heading"><h3 id="todayUpcomingHeading">近日中</h3><span id="todayUpcomingCount">0件</span></div>
+          <div id="todayUpcomingTasks" class="today-tasks"></div>
+        </section>
+      </div>
+      <div id="todayEmpty" class="today-empty" hidden>
+        <strong>表示する予定はありません</strong>
+        <span>絞り込みを解除するか、中央の「記録」から次のケアを予定できます。</span>
+        <button class="secondary" id="todayEmptyAddPlan" type="button">ケア予定を追加</button>
+      </div>
     </section>
   </div>
 
@@ -961,14 +1001,14 @@
   </div>
 </dialog>
 
-<script src="./js/storage.js?v=1.16.0"></script>
-<script src="./js/photo-storage.js?v=1.16.0"></script>
-<script src="./js/ui.js?v=1.16.0"></script>
-<script src="./js/reminders.js?v=1.16.0"></script>
-<script src="./js/calendar.js?v=1.16.0"></script>
-<script src="./js/calendar-export.js?v=1.16.0"></script>
-<script src="./js/weather.js?v=1.16.0"></script>
-<script src="./js/today.js?v=1.16.0"></script>
-<script src="./js/app.js?v=1.16.0"></script>
+<script src="./js/storage.js?v=1.17.0"></script>
+<script src="./js/photo-storage.js?v=1.17.0"></script>
+<script src="./js/ui.js?v=1.17.0"></script>
+<script src="./js/reminders.js?v=1.17.0"></script>
+<script src="./js/calendar.js?v=1.17.0"></script>
+<script src="./js/calendar-export.js?v=1.17.0"></script>
+<script src="./js/weather.js?v=1.17.0"></script>
+<script src="./js/today.js?v=1.17.0"></script>
+<script src="./js/app.js?v=1.17.0"></script>
 </body>
 </html>

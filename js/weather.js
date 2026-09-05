@@ -1,9 +1,9 @@
 function loadWeather(){
-  const defaults={latitude:null,longitude:null,accuracy:null,cityName:'',municipalityCode:'',cityLookupAttemptedAt:0,displayThreshold:1,equivalentThreshold:10,days:{},lastUpdated:0};
+  const defaults={latitude:null,longitude:null,accuracy:null,cityName:'',municipalityCode:'',cityLookupAttemptedAt:0,displayThreshold:1,equivalentThreshold:10,days:{},maxTemps:{},minTemps:{},lastUpdated:0};
   try{
     const saved=JSON.parse(localStorage.getItem(WEATHER_KEY) || 'null');
     if(!saved || typeof saved!=='object') return defaults;
-    return {...defaults,...saved,days:saved.days && typeof saved.days==='object'?saved.days:{}};
+    return {...defaults,...saved,days:saved.days && typeof saved.days==='object'?saved.days:{},maxTemps:saved.maxTemps && typeof saved.maxTemps==='object'?saved.maxTemps:{},minTemps:saved.minTemps && typeof saved.minTemps==='object'?saved.minTemps:{}};
   }catch(e){ return defaults; }
 }
 
@@ -87,22 +87,25 @@ async function refreshWeather(force=false){
   if(!force && Date.now()-Number(weather.lastUpdated)<60*60*1000) return;
   const params=new URLSearchParams({
     latitude:String(weather.latitude),longitude:String(weather.longitude),
-    daily:'precipitation_sum',timezone:'auto',past_days:'92',forecast_days:'16'
+    daily:'precipitation_sum,temperature_2m_max,temperature_2m_min',timezone:'auto',past_days:'92',forecast_days:'16'
   });
   try{
     const response=await fetch(`https://api.open-meteo.com/v1/forecast?${params}`);
     if(!response.ok) throw new Error(`weather ${response.status}`);
     const json=await response.json();
     const times=json.daily?.time;
-    const amounts=json.daily?.precipitation_sum;
-    if(!Array.isArray(times) || !Array.isArray(amounts)) throw new Error('invalid weather data');
-    const days={};
+    const amounts=json.daily?.precipitation_sum,maxValues=json.daily?.temperature_2m_max,minValues=json.daily?.temperature_2m_min;
+    if(!Array.isArray(times) || !Array.isArray(amounts) || !Array.isArray(maxValues) || !Array.isArray(minValues)) throw new Error('invalid weather data');
+    const days={},maxTemps={},minTemps={};
     times.forEach((date,index)=>{
-      const amount=Number(amounts[index]);
+      const amount=Number(amounts[index]),max=Number(maxValues[index]),min=Number(minValues[index]);
       if(/^\d{4}-\d{2}-\d{2}$/.test(date) && amounts[index]!==null && Number.isFinite(amount)) days[date]=amount;
+      if(/^\d{4}-\d{2}-\d{2}$/.test(date) && maxValues[index]!==null && Number.isFinite(max)) maxTemps[date]=max;
+      if(/^\d{4}-\d{2}-\d{2}$/.test(date) && minValues[index]!==null && Number.isFinite(min)) minTemps[date]=min;
     });
-    weather={...weather,days,lastUpdated:Date.now()};
+    weather={...weather,days,maxTemps,minTemps,lastUpdated:Date.now()};
     saveWeatherLocal();
+    if(typeof renderToday==='function') renderToday();
     if($('weatherDialog').open){
       weatherDraft={...weather,days:{...weather.days}};
       updateWeatherDialogStatus();
@@ -169,4 +172,3 @@ $('saveWeather').onclick=()=>{
   refreshWeather(true);
   toast('天気・位置設定を保存しました');
 };
-
