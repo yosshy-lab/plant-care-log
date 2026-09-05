@@ -543,7 +543,7 @@ body{padding-bottom:calc(104px + env(safe-area-inset-bottom))}
 .screen-eyebrow{display:block;color:var(--muted);font-size:11px;font-weight:750;letter-spacing:.02em}
 .compact-action{width:auto;padding:8px 11px;font-size:12px;white-space:nowrap}
 
-.today-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-bottom:14px}
+.today-summary{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:14px}
 .today-stat{
   display:grid;grid-template-columns:30px minmax(0,1fr) auto;grid-template-areas:"icon label value" "icon meta meta";align-items:center;column-gap:10px;row-gap:2px;min-width:0;min-height:76px;padding:10px 12px;
   color:var(--text);background:var(--surface);border:1px solid var(--card-border);box-shadow:var(--card-shadow);text-align:left
@@ -742,7 +742,6 @@ dialog.action-sheet-dialog{width:min(100%,680px);margin:auto auto 0;border-radiu
   .today-stat{min-height:72px;padding:9px 10px}
   .today-stat strong{font-size:18px}
   .today-stat.weather strong{font-size:17px}
-  .today-summary{grid-template-columns:repeat(2,minmax(0,1fr))}
   .today-filter-bar{grid-template-columns:1fr 1fr}
   .today-filter-bar button{grid-column:1/-1}
   .today-undo-notice,.today-batch-actions{align-items:stretch;flex-direction:column}
