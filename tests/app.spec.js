@@ -457,8 +457,8 @@ test('カレンダーは日曜・土曜を区別して表示する', async ({ pa
   await expect(page.locator('.calendar-day')).toHaveCount(42);
   await expect(page.locator('.calendar-day.sunday')).toHaveCount(6);
   await expect(page.locator('.calendar-day.saturday')).toHaveCount(6);
-  await expect(page.locator('.calendar-day.sunday').first()).toHaveCSS('background-color', 'rgb(255, 247, 247)');
-  await expect(page.locator('.calendar-day.saturday').first()).toHaveCSS('background-color', 'rgb(245, 249, 255)');
+  await expect(page.locator('.calendar-day.sunday:not(.selected):not(.today)').first()).toHaveCSS('background-color', 'rgb(255, 247, 247)');
+  await expect(page.locator('.calendar-day.saturday:not(.selected):not(.today)').first()).toHaveCSS('background-color', 'rgb(245, 249, 255)');
 });
 
 test('今日へ戻るを年月の横へ小さく表示する', async ({ page }) => {
