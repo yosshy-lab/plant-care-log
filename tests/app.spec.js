@@ -197,7 +197,7 @@ test('更新案内は新バージョンの初回だけ表示しメニューか�
 
   await page.locator('#releaseNoticeDetails').click();
   await expect(page.locator('#releaseNotesDialog')).toBeVisible();
-  await expect(page.locator('#releaseNotesList')).toContainText('v1.16.0');
+  await expect(page.locator('#releaseNotesList')).toContainText('v1.17.0');
   await expect(page.locator('#releaseNotesList')).not.toContainText('v1.9.0');
   await expect(page.locator('#releaseNotesHint')).toContainText('今回のアップデート内容');
   await page.locator('#closeReleaseNotes').click();
