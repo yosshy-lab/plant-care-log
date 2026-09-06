@@ -37,7 +37,7 @@ test('主要画面がJavaScriptエラーなく表示される', async ({ page })
   page.on('pageerror', error => errors.push(error.message));
   await page.goto('/');
   await expect(page).toHaveTitle('塊根植物記録');
-  await expect(page.locator('#appVersionDisplay')).toHaveText('v1.17.0');
+  await expect(page.locator('#appVersionDisplay')).toHaveText('v1.18.0');
   await expect(page.locator('#addBtn')).toBeVisible();
   await expect(page.locator('#plantSearch')).toBeVisible();
   await expect(page.locator('#navCalendarBtn')).toBeVisible();
@@ -184,6 +184,14 @@ test('下部ナビと一覧の一括選択操作を表示する', async ({ page 
   await expect(page.locator('#dataMenu')).toBeVisible();
   await expect(page.locator('.menu-sheet-section')).toHaveCount(4);
   await expect(page.locator('#dataMenu')).toContainText('カレンダー・天気');
+  await page.locator('#contactBtn').click();
+  await expect(page.locator('#contactDialog')).toBeVisible();
+  await expect(page.locator('#instagramContactLink')).toHaveAttribute('href', 'https://www.instagram.com/hibi_kore_kaikon/');
+  await expect(page.locator('#threadsContactLink')).toHaveAttribute('href', 'https://www.threads.com/@hibi_kore_kaikon');
+  await expect(page.locator('#instagramContactLink')).toHaveAttribute('target', '_blank');
+  await expect(page.locator('#contactDialog')).toContainText('個人情報・機密情報は送らないでください');
+  await page.locator('#closeContactBottom').click();
+  await openMore(page);
   await expect(page.locator('#batchWaterBtn')).toHaveCount(0);
   await page.locator('#openDataManagementBtn').click();
   await expect(page.locator('#dataManagementDialog')).toBeVisible();
@@ -200,12 +208,12 @@ test('更新案内は新バージョンの初回だけ表示しメニューか�
   await seed(page);
   await page.goto('/');
   await expect(page.locator('#releaseNotice')).toBeVisible();
-  await expect(page.locator('#releaseNotice')).toContainText('v1.17.0 更新');
-  await expect(page.locator('#releaseNotice')).toContainText('今日やることを迷わず確認');
+  await expect(page.locator('#releaseNotice')).toContainText('v1.18.0 更新');
+  await expect(page.locator('#releaseNotice')).toContainText('ご要望や不具合をDMで連絡');
 
   await page.locator('#releaseNoticeDetails').click();
   await expect(page.locator('#releaseNotesDialog')).toBeVisible();
-  await expect(page.locator('#releaseNotesList')).toContainText('v1.17.0');
+  await expect(page.locator('#releaseNotesList')).toContainText('v1.18.0');
   await expect(page.locator('#releaseNotesList')).not.toContainText('v1.9.0');
   await expect(page.locator('#releaseNotesHint')).toContainText('今回のアップデート内容');
   await page.locator('#closeReleaseNotes').click();
@@ -689,7 +697,7 @@ test('バックアップに件数とバージョン情報を含めて保存す�
   expect(payload).toMatchObject({
     format: 'plant-care-log-backup',
     schemaVersion: 1,
-    appVersion: '1.17.0'
+    appVersion: '1.18.0'
   });
   expect(payload.plants).toHaveLength(3);
   expect(payload.reminders).toEqual([reminder]);

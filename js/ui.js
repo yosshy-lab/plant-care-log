@@ -103,6 +103,14 @@ function initializeTheme(){
 
 const RELEASE_NOTES=[
   {
+    version:'1.18.0',date:'2026年9月6日',title:'ご要望や不具合をDMで連絡',
+    items:[
+      '「その他」から、ご要望・お問い合わせ画面を開けるようになりました。',
+      'InstagramとThreadsの公式アカウントへ、アプリから移動できます。',
+      '不具合報告時に役立つ情報と、送信前の注意を確認できます。'
+    ]
+  },
+  {
     version:'1.17.0',date:'2026年9月5日',title:'今日やることを迷わず確認',
     items:[
       '予定を期限超過、今日、7日以内に分けて確認できるようになりました。',
@@ -2219,6 +2227,21 @@ $('helpBtn').onclick=()=>{
   trackPlantCareEvent('help_viewed');
 };
 $('closeHelp').onclick=()=> $('helpDialog').close();
+$('contactBtn').onclick=()=>{
+  closeDataMenu();
+  $('contactDialog').showModal();
+  trackPlantCareEvent('contact_viewed');
+};
+const closeContactDialog=()=>{
+  if($('contactDialog').open) $('contactDialog').close();
+};
+$('closeContact').onclick=closeContactDialog;
+$('closeContactBottom').onclick=closeContactDialog;
+$('contactDialog').onclick=event=>{
+  if(event.target===$('contactDialog')) closeContactDialog();
+};
+$('instagramContactLink').onclick=()=>trackPlantCareEvent('contact_link_opened',{channel:'instagram'});
+$('threadsContactLink').onclick=()=>trackPlantCareEvent('contact_link_opened',{channel:'threads'});
 $('releaseNotesBtn').onclick=()=>openReleaseNotes('menu');
 $('releaseNoticeDetails').onclick=()=>openReleaseNotes('notice');
 $('closeReleaseNotes').onclick=()=> $('releaseNotesDialog').close();

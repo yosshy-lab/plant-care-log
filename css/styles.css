@@ -692,6 +692,22 @@ dialog.action-sheet-dialog{width:min(100%,680px);margin:auto auto 0;border-radiu
 .template-actions button{min-width:0;padding:9px 11px;font-size:11px}
 :root[data-theme="dark"] .care-efficiency-tools,:root[data-theme="dark"] .plans-batch-actions{border-color:#315238;background:#152c19}
 .action-sheet-close{width:100%;margin-top:12px}
+.contact-dialog-content{max-width:520px}
+.contact-intro{margin:0 0 14px;color:var(--text-soft);font-size:13px;line-height:1.7}
+.contact-links{display:grid;gap:9px}
+.contact-link{
+  display:grid;grid-template-columns:42px minmax(0,1fr) auto;align-items:center;gap:11px;
+  min-height:68px;padding:12px 14px;border:1px solid var(--line);border-radius:15px;
+  background:var(--surface);color:var(--text);text-decoration:none
+}
+.contact-link:hover{border-color:#7da483;background:var(--surface-subtle)}
+.contact-link:focus-visible{outline:3px solid rgba(70,107,75,.28);outline-offset:2px}
+.contact-link.primary-contact{border-color:#8aaf90}
+.contact-link-icon{display:grid;place-items:center;width:42px;height:42px;border-radius:13px;background:#e8f2e9;color:#355b3b;font-size:20px;font-weight:850}
+.contact-link strong,.contact-link small{display:block}
+.contact-link strong{font-size:14px}.contact-link small{margin-top:3px;color:var(--muted);font-size:11px}
+.contact-link-arrow{color:var(--muted);font-size:19px}
+.contact-note{margin-top:13px;font-size:12px}
 
 :root[data-theme="dark"] .today-stat-icon{background:#19351f;color:#a7d5ad}
 :root[data-theme="dark"] .today-stat.overdue .today-stat-icon{background:#422006;color:#fcd34d}
@@ -701,6 +717,8 @@ dialog.action-sheet-dialog{width:min(100%,680px);margin:auto auto 0;border-radiu
 :root[data-theme="dark"] .detail-timeline-marker{border-color:var(--card);background:#19351f}
 :root[data-theme="dark"] .detail-hero .plant-status{background:rgba(17,24,39,.86);color:#f3f4f6}
 :root[data-theme="dark"] .menu-sheet-list button::before{color:#a7d5ad}
+:root[data-theme="dark"] .contact-link-icon{background:#19351f;color:#a7d5ad}
+:root[data-theme="dark"] .contact-link.primary-contact{border-color:#648c69}
 :root[data-theme="dark"] .calendar-day-summary strong{color:#a7d5ad}
 :root[data-theme="dark"] .calendar-filter-chips button.active{border-color:#7ba581;background:#315238}
 

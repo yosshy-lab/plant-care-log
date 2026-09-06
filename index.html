@@ -38,8 +38,8 @@
 <link rel="apple-touch-icon" sizes="180x180" href="./apple-touch-icon.png">
 <link rel="icon" type="image/png" href="./apple-touch-icon.png">
 <title>塊根植物記録</title>
-<script src="./js/analytics.js?v=1.17.0"></script>
-<link rel="stylesheet" href="./css/styles.css?v=1.17.0-ui2">
+<script src="./js/analytics.js?v=1.18.0"></script>
+<link rel="stylesheet" href="./css/styles.css?v=1.18.0">
 </head>
 <body>
 <div class="wrap">
@@ -304,6 +304,9 @@
       <h3 id="helpMenuTitle">ヘルプ・アプリ情報</h3>
       <div class="menu-sheet-list">
         <button id="helpBtn" type="button" data-icon="?">使い方・ヘルプ</button>
+        <button id="contactBtn" type="button" data-icon="✉">
+          <span>ご要望・お問い合わせ<small>Instagram・ThreadsのDM</small></span>
+        </button>
         <button id="releaseNotesBtn" type="button" data-icon="i">更新情報</button>
       </div>
     </section>
@@ -442,6 +445,30 @@
       </div>
     </details>
     <div class="actions"><button id="closeHelp">閉じる</button></div>
+  </div>
+</dialog>
+
+<dialog id="contactDialog" aria-labelledby="contactDialogTitle">
+  <div class="modal contact-dialog-content">
+    <div class="menu-sheet-header">
+      <div><span class="screen-eyebrow">サポート</span><h2 id="contactDialogTitle">ご要望・お問い合わせ</h2></div>
+      <button class="secondary menu-sheet-close" id="closeContact" type="button" aria-label="お問い合わせを閉じる">×</button>
+    </div>
+    <p class="contact-intro">機能のご要望、不具合のご報告、ご質問はDMでお送りください。返信までお時間をいただく場合があります。</p>
+    <div class="contact-links" aria-label="お問い合わせ先">
+      <a id="instagramContactLink" class="contact-link primary-contact" href="https://www.instagram.com/hibi_kore_kaikon/" target="_blank" rel="noopener noreferrer">
+        <span class="contact-link-icon" aria-hidden="true">◎</span>
+        <span><strong>InstagramでDM</strong><small>@hibi_kore_kaikon</small></span>
+        <span class="contact-link-arrow" aria-hidden="true">↗</span>
+      </a>
+      <a id="threadsContactLink" class="contact-link" href="https://www.threads.com/@hibi_kore_kaikon" target="_blank" rel="noopener noreferrer">
+        <span class="contact-link-icon" aria-hidden="true">＠</span>
+        <span><strong>ThreadsでDM</strong><small>@hibi_kore_kaikon</small></span>
+        <span class="contact-link-arrow" aria-hidden="true">↗</span>
+      </a>
+    </div>
+    <div class="help-callout contact-note"><strong>送信前のお願い：</strong>氏名、住所、バックアップ内容などの個人情報・機密情報は送らないでください。不具合の場合は、利用端末と発生した操作を添えると確認しやすくなります。</div>
+    <div class="actions"><button id="closeContactBottom" type="button">閉じる</button></div>
   </div>
 </dialog>
 
@@ -1001,14 +1028,14 @@
   </div>
 </dialog>
 
-<script src="./js/storage.js?v=1.17.0"></script>
-<script src="./js/photo-storage.js?v=1.17.0"></script>
-<script src="./js/ui.js?v=1.17.0"></script>
-<script src="./js/reminders.js?v=1.17.0"></script>
-<script src="./js/calendar.js?v=1.17.0"></script>
-<script src="./js/calendar-export.js?v=1.17.0"></script>
-<script src="./js/weather.js?v=1.17.0"></script>
-<script src="./js/today.js?v=1.17.0"></script>
-<script src="./js/app.js?v=1.17.0"></script>
+<script src="./js/storage.js?v=1.18.0"></script>
+<script src="./js/photo-storage.js?v=1.18.0"></script>
+<script src="./js/ui.js?v=1.18.0"></script>
+<script src="./js/reminders.js?v=1.18.0"></script>
+<script src="./js/calendar.js?v=1.18.0"></script>
+<script src="./js/calendar-export.js?v=1.18.0"></script>
+<script src="./js/weather.js?v=1.18.0"></script>
+<script src="./js/today.js?v=1.18.0"></script>
+<script src="./js/app.js?v=1.18.0"></script>
 </body>
 </html>
