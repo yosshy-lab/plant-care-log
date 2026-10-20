@@ -103,6 +103,13 @@ function initializeTheme(){
 
 const RELEASE_NOTES=[
   {
+    version:'1.19.0',date:'2026年10月20日',title:'重さをg単位で記録',
+    items:[
+      '状態・写真記録に任意入力の「重さ（g）」を追加しました。',
+      '記録した重さを履歴で確認・編集でき、植物詳細で推移を確認できます。'
+    ]
+  },
+  {
     version:'1.18.0',date:'2026年9月6日',title:'ご要望や不具合をDMで連絡',
     items:[
       '「その他」から、ご要望・お問い合わせ画面を開けるようになりました。',
@@ -694,13 +701,13 @@ function legacyMeasurementNumber(value){
 function measurementValue(log,key){
   const details=log?.details || {};
   const structured=details.measurements?.[key];
-  if(Number.isFinite(Number(structured)) && Number(structured)>=0) return Number(structured);
-  const legacyKey={height:'height',trunkWidth:'trunkWidth',leafCount:'leafCount'}[key];
+  if(structured!==null && structured!==undefined && structured!=='' && Number.isFinite(Number(structured)) && Number(structured)>=0) return Number(structured);
+  const legacyKey={height:'height',trunkWidth:'trunkWidth',leafCount:'leafCount',weight:'weight'}[key];
   return legacyMeasurementNumber(details[legacyKey]);
 }
 
 function logHasMeasurement(log){
-  return ['height','trunkWidth','leafCount'].some(key=>measurementValue(log,key)!==null);
+  return ['height','trunkWidth','leafCount','weight'].some(key=>measurementValue(log,key)!==null);
 }
 
 function timelineMatches(log,filter){
@@ -726,8 +733,8 @@ function plantTimelineHtml(plant,filter='all'){
 
 function plantGrowthMeasurements(plant){
   return (plant.logs || []).map(log=>({
-    time:Number(log.time),height:measurementValue(log,'height'),trunkWidth:measurementValue(log,'trunkWidth'),leafCount:measurementValue(log,'leafCount')
-  })).filter(item=>Number.isFinite(item.time) && [item.height,item.trunkWidth,item.leafCount].some(value=>value!==null)).sort((a,b)=>a.time-b.time);
+    time:Number(log.time),height:measurementValue(log,'height'),trunkWidth:measurementValue(log,'trunkWidth'),leafCount:measurementValue(log,'leafCount'),weight:measurementValue(log,'weight')
+  })).filter(item=>Number.isFinite(item.time) && [item.height,item.trunkWidth,item.leafCount,item.weight].some(value=>value!==null)).sort((a,b)=>a.time-b.time);
 }
 
 function growthChartCard(items,key,label,unit,color){
@@ -756,11 +763,12 @@ function growthChartCard(items,key,label,unit,color){
 
 function plantGrowthChartsHtml(plant){
   const items=plantGrowthMeasurements(plant);
-  if(!items.length) return '<div class="detail-timeline-empty">状態・写真記録で高さ、太さ、葉数を入力すると推移を表示します。</div>';
+  if(!items.length) return '<div class="detail-timeline-empty">状態・写真記録で高さ、太さ、葉数、重さを入力すると推移を表示します。</div>';
   return `<div class="growth-chart-grid">
     ${growthChartCard(items,'height','高さ','cm','#4f7a55')}
     ${growthChartCard(items,'trunkWidth','幹・茎','cm','#0e7490')}
     ${growthChartCard(items,'leafCount','葉数','枚','#7c3aed')}
+    ${growthChartCard(items,'weight','重さ','g','#b45309')}
   </div>`;
 }
 
@@ -1227,7 +1235,7 @@ function renderCareTemplates(){
 function applyCarePreset(preset){
   if(!preset) return;
   const details=preset.details || {};
-  ['waterAmount','pesticideName','pesticideTarget','pesticideDilution','pesticideNextDate','potType','potSize','soilMix','repotReason','fertilizerName','fertilizerAmount','plantHeight','trunkWidth','leafCount','waterNote'].forEach(id=>$(id).value='');
+  ['waterAmount','pesticideName','pesticideTarget','pesticideDilution','pesticideNextDate','potType','potSize','soilMix','repotReason','fertilizerName','fertilizerAmount','plantHeight','trunkWidth','leafCount','plantWeight','waterNote'].forEach(id=>$(id).value='');
   $('rootPruned').checked=false;
   $('careType').value=preset.care || '水やり';
   $('waterType').value=preset.type || 'たっぷり灌水';
@@ -1249,6 +1257,7 @@ function applyCarePreset(preset){
   $('plantHeight').value=measurementValue(preset,'height') ?? '';
   $('trunkWidth').value=measurementValue(preset,'trunkWidth') ?? '';
   $('leafCount').value=measurementValue(preset,'leafCount') ?? '';
+  $('plantWeight').value=measurementValue(preset,'weight') ?? '';
   $('waterNote').value=preset.note || '';
   toggleCareFields();
 }
@@ -1261,8 +1270,8 @@ function carePresetFromForm(){
   if(care==='植え替え') Object.assign(details,{potType:$('potType').value.trim(),potSize:$('potSize').value.trim(),soilMix:$('soilMix').value.trim(),rootPruned:$('rootPruned').checked,reason:$('repotReason').value.trim()});
   if(care==='施肥') Object.assign(details,{name:$('fertilizerName').value.trim(),form:$('fertilizerForm').value,amount:$('fertilizerAmount').value.trim()});
   if(care==='状態・写真記録'){
-    const height=legacyMeasurementNumber($('plantHeight').value),trunkWidth=legacyMeasurementNumber($('trunkWidth').value),leafCount=legacyMeasurementNumber($('leafCount').value);
-    Object.assign(details,{height:height===null?'':`${height}cm`,trunkWidth:trunkWidth===null?'':`${trunkWidth}cm`,leafCount:leafCount===null?'':`${Math.round(leafCount)}枚`,measurements:{height,trunkWidth,leafCount:leafCount===null?null:Math.round(leafCount)}});
+    const height=legacyMeasurementNumber($('plantHeight').value),trunkWidth=legacyMeasurementNumber($('trunkWidth').value),leafCount=legacyMeasurementNumber($('leafCount').value),weight=legacyMeasurementNumber($('plantWeight').value);
+    Object.assign(details,{height:height===null?'':`${height}cm`,trunkWidth:trunkWidth===null?'':`${trunkWidth}cm`,leafCount:leafCount===null?'':`${Math.round(leafCount)}枚`,weight:weight===null?'':`${weight}g`,measurements:{height,trunkWidth,leafCount:leafCount===null?null:Math.round(leafCount),weight}});
   }
   return {care,type:care==='水やり'?$('waterType').value:care,fertilizer:care==='水やり'?$('fertilizer').value:'なし',details,note:$('waterNote').value.trim()};
 }
@@ -1289,7 +1298,7 @@ let batchCarePreset=null;
 function resetCareForm(){
   ['waterAmount','pesticideName','pesticideTarget','pesticideDilution','pesticideNextDate',
    'potType','potSize','soilMix','repotReason','fertilizerName','fertilizerAmount',
-   'plantHeight','trunkWidth','leafCount','waterNote'].forEach(id=>$(id).value='');
+   'plantHeight','trunkWidth','leafCount','plantWeight','waterNote'].forEach(id=>$(id).value='');
   $('waterType').value='たっぷり灌水';
   $('fertilizer').value='なし';
   $('pesticideMethod').value='散布';
@@ -1395,6 +1404,7 @@ window.openCare=(id,options={})=>{
     $('plantHeight').value=measurementValue(existing,'height') ?? '';
     $('trunkWidth').value=measurementValue(existing,'trunkWidth') ?? '';
     $('leafCount').value=measurementValue(existing,'leafCount') ?? '';
+    $('plantWeight').value=measurementValue(existing,'weight') ?? '';
     $('waterNote').value=existing.note || '';
     editingCarePhoto=careMode==='record'?(existing.photo || ''):'';
     editingCarePhotoId=careMode==='record'?(existing.photoId || ''):'';
@@ -1494,6 +1504,7 @@ $('saveCare').onclick=async()=>{
   if(care==='薬剤散布' && !$('pesticideName').value.trim()) return showFieldError('pesticideName','薬剤名を入力してください。');
   if(care==='施肥' && !$('fertilizerName').value.trim()) return showFieldError('fertilizerName','肥料名を入力してください。');
 
+  if(care==='状態・写真記録' && !$('plantWeight').reportValidity()) return;
   const preset=carePresetFromForm();
   const details=preset.details;
 
@@ -1663,6 +1674,8 @@ function careDetailHtml(l){
     if(d.height) parts.push(`高さ：${esc(d.height)}`);
     if(d.trunkWidth) parts.push(`幹・茎：${esc(d.trunkWidth)}`);
     if(d.leafCount) parts.push(`葉数：${esc(d.leafCount)}`);
+    const weight=measurementValue(l,'weight');
+    if(weight!==null) parts.push(`重さ：${esc(String(weight))}g`);
   }
   if(l.note) parts.push(`メモ：${esc(l.note)}`);
   return parts.join('<br>') || '詳細なし';

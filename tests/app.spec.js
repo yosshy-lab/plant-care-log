@@ -37,7 +37,7 @@ test('主要画面がJavaScriptエラーなく表示される', async ({ page })
   page.on('pageerror', error => errors.push(error.message));
   await page.goto('/');
   await expect(page).toHaveTitle('塊根植物記録');
-  await expect(page.locator('#appVersionDisplay')).toHaveText('v1.18.0');
+  await expect(page.locator('#appVersionDisplay')).toHaveText('v1.19.0');
   await expect(page.locator('#addBtn')).toBeVisible();
   await expect(page.locator('#plantSearch')).toBeVisible();
   await expect(page.locator('#navCalendarBtn')).toBeVisible();
@@ -208,12 +208,12 @@ test('更新案内は新バージョンの初回だけ表示しメニューか�
   await seed(page);
   await page.goto('/');
   await expect(page.locator('#releaseNotice')).toBeVisible();
-  await expect(page.locator('#releaseNotice')).toContainText('v1.18.0 更新');
-  await expect(page.locator('#releaseNotice')).toContainText('ご要望や不具合をDMで連絡');
+  await expect(page.locator('#releaseNotice')).toContainText('v1.19.0 更新');
+  await expect(page.locator('#releaseNotice')).toContainText('重さをg単位で記録');
 
   await page.locator('#releaseNoticeDetails').click();
   await expect(page.locator('#releaseNotesDialog')).toBeVisible();
-  await expect(page.locator('#releaseNotesList')).toContainText('v1.18.0');
+  await expect(page.locator('#releaseNotesList')).toContainText('v1.19.0');
   await expect(page.locator('#releaseNotesList')).not.toContainText('v1.9.0');
   await expect(page.locator('#releaseNotesHint')).toContainText('今回のアップデート内容');
   await page.locator('#closeReleaseNotes').click();
@@ -697,7 +697,7 @@ test('バックアップに件数とバージョン情報を含めて保存す�
   expect(payload).toMatchObject({
     format: 'plant-care-log-backup',
     schemaVersion: 1,
-    appVersion: '1.18.0'
+    appVersion: '1.19.0'
   });
   expect(payload.plants).toHaveLength(3);
   expect(payload.reminders).toEqual([reminder]);
@@ -1436,4 +1436,50 @@ test('ケア予定を複製し選択した予定を延期・一括完了でき�
   expect(saved.plants[0].logs).toHaveLength(2);
   expect(saved.plants[0].plans).toHaveLength(1);
   expect(saved.plants[0].plans[0].id).toBe(copy.id);
+});
+
+test('重さは任意でg単位の小数を保存・編集でき、空欄は測定に含めない', async ({ page }) => {
+  await seed(page, [{ ...plants[0], logs: [] }]);
+  await page.goto('/');
+  await page.locator('.care').click();
+  await page.locator('#careType').selectOption({ label: '状態・写真記録' });
+  await expect(page.getByLabel('重さ 任意')).toBeVisible();
+  await expect(page.locator('#plantWeight')).not.toHaveAttribute('required');
+  await page.locator('#plantWeight').fill('-1');
+  await page.locator('#saveCare').click();
+  await expect(page.locator('#careDialog')).toBeVisible();
+  await page.locator('#plantWeight').fill('250.25');
+  await page.locator('#saveCare').click();
+  await expect(page.locator('#careDialog')).toBeHidden();
+  await page.reload();
+  await page.evaluate(() => window.showHistory('a'));
+  await expect(page.locator('#historyList')).toContainText('重さ：250.25g');
+  await page.locator('.history-actions .secondary').click();
+  await expect(page.locator('#plantWeight')).toHaveValue('250.25');
+  await expect(page.locator('#plantHeight')).toHaveValue('');
+  await page.locator('#plantWeight').fill('0');
+  await page.locator('#saveCare').click();
+  await expect(page.locator('#historyList')).toContainText('重さ：0g');
+  await page.locator('.history-actions .secondary').click();
+  await expect(page.locator('#plantWeight')).toHaveValue('0');
+  await page.locator('#plantWeight').fill('');
+  await page.locator('#saveCare').click();
+  await expect(page.locator('#historyList')).not.toContainText('重さ：');
+  const saved = await page.evaluate(key => JSON.parse(localStorage.getItem(key)), storageKey);
+  expect(saved.plants[0].logs[0].details.measurements.weight).toBeNull();
+  expect(await page.evaluate(() => measurementValue(data.plants[0].logs[0], 'weight'))).toBeNull();
+  expect(await page.evaluate(() => logHasMeasurement(data.plants[0].logs[0]))).toBe(false);
+});
+
+test('重さのみの測定をグラフ化し旧記録に重さを補わない', async ({ page }) => {
+  await seed(page, [{ ...plants[0], logs: [
+    {time:Date.now()-2000, care:'状態・写真記録', details:{height:'12cm'}},
+    {time:Date.now()-1000, care:'状態・写真記録', details:{weight:'250.5g',measurements:{height:null,trunkWidth:null,leafCount:null,weight:250.5}}}
+  ] }]);
+  await page.goto('/');
+  await page.locator('.plant-card').click();
+  await expect(page.locator('.growth-chart-card')).toHaveCount(2);
+  await expect(page.getByRole('img',{name:'重さの推移。最新250.5g'})).toBeVisible();
+  await expect(page.locator('#plantTimelineList')).toContainText('重さ：250.5g');
+  expect(await page.evaluate(() => measurementValue(data.plants[0].logs[0], 'weight'))).toBeNull();
 });

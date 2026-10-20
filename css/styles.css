@@ -142,7 +142,7 @@ button:disabled{opacity:.45;cursor:not-allowed}
   .care,.quick-water{min-height:40px}
 }
 .care-fields[hidden]{display:none}
-.measurement-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.measurement-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
 .measurement-grid label{min-height:34px;line-height:1.35}
 .unit-input{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;border:1px solid var(--line);border-radius:10px;background:var(--surface);overflow:hidden}
 .unit-input:focus-within{border-color:#648c69;box-shadow:0 0 0 3px rgba(79,122,85,.12)}
